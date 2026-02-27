@@ -1,0 +1,27 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="LGPL 3.0"
+
+[[mods]]
+modId="peakstamina"
+version="1.0.0"
+displayName="Peak Stamina"
+authors="Swiss"
+description='''
+A comprehensive stamina system for Minecraft featuring penalties, 
+exhaustion mechanics, and stamina overlays.
+'''
+
+[[dependencies.peakstamina]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.peakstamina]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21)"
+    ordering="NONE"
+    side="BOTH"
