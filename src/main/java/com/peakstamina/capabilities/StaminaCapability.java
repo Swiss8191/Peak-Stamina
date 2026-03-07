@@ -12,9 +12,13 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class StaminaCapability implements INBTSerializable<CompoundTag> {
     public static final Capability<StaminaCapability> INSTANCE = CapabilityManager.get(new CapabilityToken<>() {});
+    public transient Map<String, Double> cachedNbtValues = new java.util.HashMap<>();
+    public transient float lastSyncedStamina = -1.0f;
+
     public float stamina = 100.0f;
     public float maxStamina = 100.0f;
     
@@ -27,14 +31,14 @@ public class StaminaCapability implements INBTSerializable<CompoundTag> {
     public int exhaustionCooldown = 0;
     public float currentHungerPenalty = 0.0f; 
     public float[] penaltyValues = new float[0];
+    public int[] buffCooldowns = new int[0]; 
     
     public float poisonPenalty = 0.0f;
     public int poisonTimer = 0; 
 
     public float weightPenalty = 0.0f;
     public float bonusStamina = 0.0f;
-    public int bonusStaminaDecayTimer = 0; 
-
+    public int bonusStaminaDecayTimer = 0;
     public int waterExhaustionTimer = 0;
 
     public String currentParCoolAction = null;
@@ -51,11 +55,11 @@ public class StaminaCapability implements INBTSerializable<CompoundTag> {
         this.exhaustionCooldown = other.exhaustionCooldown;
         this.currentHungerPenalty = other.currentHungerPenalty;
         this.penaltyValues = other.penaltyValues;
+        this.buffCooldowns = other.buffCooldowns;
         this.poisonPenalty = other.poisonPenalty;
         this.poisonTimer = other.poisonTimer;
         this.waterExhaustionTimer = other.waterExhaustionTimer;
         this.weightPenalty = other.weightPenalty;
-        
         this.bonusStamina = other.bonusStamina;
         this.bonusStaminaDecayTimer = other.bonusStaminaDecayTimer;
         
@@ -86,6 +90,8 @@ public class StaminaCapability implements INBTSerializable<CompoundTag> {
         for(int i=0; i<penaltyValues.length; i++) {
             tag.putFloat("PVal"+i, penaltyValues[i]);
         }
+        
+        tag.putIntArray("BuffCooldowns", buffCooldowns);
         
         ListTag buffsTag = new ListTag();
         for (BuffInstance buff : activeBuffs) {
@@ -120,6 +126,10 @@ public class StaminaCapability implements INBTSerializable<CompoundTag> {
             penaltyValues[i] = nbt.getFloat("PVal"+i);
         }
         
+        if (nbt.contains("BuffCooldowns")) {
+            buffCooldowns = nbt.getIntArray("BuffCooldowns");
+        }
+        
         activeBuffs.clear();
         if (nbt.contains("ActiveBuffs")) {
             ListTag buffsTag = nbt.getList("ActiveBuffs", Tag.TAG_COMPOUND);
@@ -133,6 +143,7 @@ public class StaminaCapability implements INBTSerializable<CompoundTag> {
 
     public static class Provider implements ICapabilityProvider, INBTSerializable<CompoundTag> {
         private final LazyOptional<StaminaCapability> instance = LazyOptional.of(StaminaCapability::new);
+
         @Override
         public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
             return cap == INSTANCE ? instance.cast() : LazyOptional.empty();

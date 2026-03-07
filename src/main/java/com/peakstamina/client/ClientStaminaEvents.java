@@ -41,6 +41,10 @@ public class ClientStaminaEvents {
     private static float displayedHunger = 0.0f;
     private static float displayedPoison = 0.0f;
     private static float displayedWeight = 0.0f;
+    private static float currentFadeProgress = 0.0f;
+    private static float currentSlideProgress = 0.0f;
+    private static int visibleLingerTimer = 0;
+
     private static final Map<Integer, Float> smoothedPenalties = new HashMap<>();
 
     private static boolean isCacheValid = false;
@@ -105,11 +109,31 @@ public class ClientStaminaEvents {
         return false;
     }
 
+    private static int applyAlpha(int color, float alpha) {
+        int a = (int) (((color >> 24) & 0xFF) * alpha);
+        return (a << 24) | (color & 0x00FFFFFF);
+    }
+
     private static int shadeColor(int color, float factor) {
         int r = (int) (((color >> 16) & 0xFF) * factor);
         int g = (int) (((color >> 8) & 0xFF) * factor);
         int b = (int) ((color & 0xFF) * factor);
         return (r << 16) | (g << 8) | b;
+    }
+
+    private static float applyEasing(float t, StaminaConfig.AutoHudEasing easing) {
+        t = Math.max(0.0f, Math.min(1.0f, t));
+        switch (easing) {
+            case SMOOTHSTEP: 
+                return t * t * (3.0f - 2.0f * t);
+            case EASE_OUT_SINE: 
+                return (float) Math.sin((t * Math.PI) / 2.0);
+            case EASE_OUT_EXPO: 
+                return t == 1.0f ? 1.0f : (float) (1.0 - Math.pow(2.0, -10.0 * t));
+            case LINEAR:
+            default: 
+                return t;
+        }
     }
 
     private static void renderStaminaHUD(GuiGraphics gfx) {
@@ -144,7 +168,6 @@ public class ClientStaminaEvents {
             if (Math.abs(hungerTarget - displayedHunger) < 0.05f) displayedHunger = hungerTarget;
             if (Math.abs(poisonTarget - displayedPoison) < 0.05f) displayedPoison = poisonTarget;
             if (Math.abs(weightTarget - displayedWeight) < 0.05f) displayedWeight = weightTarget;
-            
             float totalPenaltySum = displayedPenalty + displayedHunger + displayedPoison + displayedWeight;
             if (cap.penaltyValues != null) {
                 for (int i = 0; i < cap.penaltyValues.length; i++) {
@@ -158,31 +181,82 @@ public class ClientStaminaEvents {
                 }
             }
 
-            int sBarW = StaminaConfig.CLIENT.barWidth.get();
-            int sBarH = StaminaConfig.CLIENT.barHeight.get();
-            int offsetX = StaminaConfig.CLIENT.barXOffset.get();
-            int sBarX = (width / 2) - (sBarW / 2) + offsetX;
-            int offsetY = StaminaConfig.CLIENT.barYOffset.get();
-            int sBarY = height - offsetY;
-
             float baseMax = 100.0f;
             AttributeInstance maxAttr = mc.player.getAttribute(StaminaAttributes.MAX_STAMINA.get());
             if (maxAttr != null) baseMax = (float) maxAttr.getValue();
             if (baseMax <= 0) baseMax = 100.0f;
+
+            boolean isRecentlyUsed = cap.staminaRegenDelay > 0;
+            boolean hasPenalties = totalPenaltySum > 0.5f && StaminaConfig.CLIENT.autoHudShowOnPenalties.get();
+            boolean isBelowThreshold = displayedStamina <= (baseMax * StaminaConfig.CLIENT.autoHudThreshold.get());
+            boolean hasBonus = displayedBonusStamina > 0.5f;
+
+            boolean isActive = isRecentlyUsed || isBelowThreshold || hasPenalties || hasBonus;
+
+            // Handle linger timer
+            if (isActive) {
+                visibleLingerTimer = StaminaConfig.CLIENT.autoHudLingerTime.get();
+            } else if (visibleLingerTimer > 0) {
+                visibleLingerTimer--;
+                isActive = true; 
+            }
+
+            boolean shouldShow = !StaminaConfig.CLIENT.autoHudEnable.get() || isActive;
+            float targetAnim = shouldShow ? 1.0f : 0.0f;
+            
+            // Interpolate Fade and Slide independently
+            float fadeSpeed = shouldShow ? StaminaConfig.CLIENT.autoHudFadeInSpeed.get().floatValue() : StaminaConfig.CLIENT.autoHudFadeOutSpeed.get().floatValue();
+            float slideSpeed = shouldShow ? StaminaConfig.CLIENT.autoHudSlideInSpeed.get().floatValue() : StaminaConfig.CLIENT.autoHudSlideOutSpeed.get().floatValue();
+
+            currentFadeProgress += (targetAnim - currentFadeProgress) * fadeSpeed;
+            currentSlideProgress += (targetAnim - currentSlideProgress) * slideSpeed;
+
+            // Stop rendering completely if fully hidden
+            if (currentFadeProgress < 0.01f && currentSlideProgress < 0.01f && !shouldShow) {
+                currentFadeProgress = 0.0f;
+                currentSlideProgress = 0.0f;
+                return; 
+            }
+
+            // Apply Mode Math
+            StaminaConfig.AutoHudMode mode = StaminaConfig.CLIENT.autoHudMode.get();
+            float renderAlpha = (mode == StaminaConfig.AutoHudMode.FADE || mode == StaminaConfig.AutoHudMode.BOTH) ? currentFadeProgress : 1.0f;
+            
+            int slideX = 0;
+            int slideY = 0;
+            if (mode == StaminaConfig.AutoHudMode.SLIDE || mode == StaminaConfig.AutoHudMode.BOTH) {
+                float easedSlide = applyEasing(currentSlideProgress, StaminaConfig.CLIENT.autoHudEasing.get());
+                int maxDist = StaminaConfig.CLIENT.autoHudSlideDistance.get();
+                int offsetAmount = (int)((1.0f - easedSlide) * maxDist);
+                
+                switch (StaminaConfig.CLIENT.autoHudSlideDir.get()) {
+                    case DOWN: slideY = offsetAmount; break;
+                    case UP: slideY = -offsetAmount; break;
+                    case RIGHT: slideX = offsetAmount; break;
+                    case LEFT: slideX = -offsetAmount; break;
+                }
+            }
+
+            int sBarW = StaminaConfig.CLIENT.barWidth.get();
+            int sBarH = StaminaConfig.CLIENT.barHeight.get();
+            int offsetX = StaminaConfig.CLIENT.barXOffset.get();
+            int sBarX = (width / 2) - (sBarW / 2) + offsetX + slideX;
+            int offsetY = StaminaConfig.CLIENT.barYOffset.get();
+            int sBarY = height - offsetY + slideY;
 
             float compressionRatio = 1.0f;
             if (totalPenaltySum > baseMax && baseMax > 0) {
                 compressionRatio = baseMax / totalPenaltySum;
             }
 
-            int bgCol = 0xFF000000 | StaminaConfig.CLIENT.colorBackground.get();
-            int stripeCol = 0xFF000000 | StaminaConfig.CLIENT.colorStripes.get();
-            int energyCol = 0xFF000000 | StaminaConfig.CLIENT.colorPenaltyHunger.get();
-            int poisonCol = 0xFF000000 | StaminaConfig.CLIENT.colorPenaltyPoison.get();
-            int weightCol = 0xFF000000 | StaminaConfig.CLIENT.colorPenaltyWeight.get();
-            int sepCol = 0xFF000000;
-            
-            gfx.fill(sBarX - 1, sBarY - 1, sBarX + sBarW + 1, sBarY + sBarH + 1, 0xFF000000);
+            int bgCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorBackground.get(), renderAlpha);
+            int stripeCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorStripes.get(), renderAlpha);
+            int energyCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorPenaltyHunger.get(), renderAlpha);
+            int poisonCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorPenaltyPoison.get(), renderAlpha);
+            int weightCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorPenaltyWeight.get(), renderAlpha);
+            int sepCol = applyAlpha(0xFF000000, renderAlpha);
+
+            gfx.fill(sBarX - 1, sBarY - 1, sBarX + sBarW + 1, sBarY + sBarH + 1, sepCol);
             gfx.fill(sBarX, sBarY, sBarX + sBarW, sBarY + sBarH, bgCol);
 
             float pxScale = sBarW / baseMax;
@@ -193,8 +267,8 @@ public class ClientStaminaEvents {
             if (fatiguePx > 0) {
                 if (fatiguePx > currentPenaltyRightEdge) fatiguePx = currentPenaltyRightEdge;
                 int startX = currentPenaltyRightEdge - fatiguePx;
-                drawStripesHUD(gfx, sBarX + startX, sBarY, fatiguePx, sBarH, stripeCol);
-                if (showIcons) drawIcon(gfx, sBarX + startX, sBarY, fatiguePx, sBarH, ICON_FATIGUE, stripeCol);
+                drawStripesHUD(gfx, sBarX + startX, sBarY, fatiguePx, sBarH, stripeCol, renderAlpha);
+                if (showIcons) drawIcon(gfx, sBarX + startX, sBarY, fatiguePx, sBarH, ICON_FATIGUE, stripeCol, renderAlpha);
                 gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
                 currentPenaltyRightEdge -= fatiguePx;
             }
@@ -203,8 +277,8 @@ public class ClientStaminaEvents {
             if (hungerPx > 0 && currentPenaltyRightEdge > 0) {
                 if (hungerPx > currentPenaltyRightEdge) hungerPx = currentPenaltyRightEdge;
                 int startX = currentPenaltyRightEdge - hungerPx;
-                drawStripesHUD(gfx, sBarX + startX, sBarY, hungerPx, sBarH, energyCol);
-                if (showIcons) drawIcon(gfx, sBarX + startX, sBarY, hungerPx, sBarH, ICON_HUNGER, energyCol);
+                drawStripesHUD(gfx, sBarX + startX, sBarY, hungerPx, sBarH, energyCol, renderAlpha);
+                if (showIcons) drawIcon(gfx, sBarX + startX, sBarY, hungerPx, sBarH, ICON_HUNGER, energyCol, renderAlpha);
                 gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
                 currentPenaltyRightEdge -= hungerPx;
             }
@@ -213,8 +287,8 @@ public class ClientStaminaEvents {
             if (poisonPx > 0 && currentPenaltyRightEdge > 0) {
                 if (poisonPx > currentPenaltyRightEdge) poisonPx = currentPenaltyRightEdge;
                 int startX = currentPenaltyRightEdge - poisonPx;
-                drawStripesHUD(gfx, sBarX + startX, sBarY, poisonPx, sBarH, poisonCol);
-                if (showIcons) drawIcon(gfx, sBarX + startX, sBarY, poisonPx, sBarH, ICON_POISON, poisonCol);
+                drawStripesHUD(gfx, sBarX + startX, sBarY, poisonPx, sBarH, poisonCol, renderAlpha);
+                if (showIcons) drawIcon(gfx, sBarX + startX, sBarY, poisonPx, sBarH, ICON_POISON, poisonCol, renderAlpha);
                 gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
                 currentPenaltyRightEdge -= poisonPx;
             }
@@ -223,8 +297,8 @@ public class ClientStaminaEvents {
             if (weightPx > 0 && currentPenaltyRightEdge > 0) {
                 if (weightPx > currentPenaltyRightEdge) weightPx = currentPenaltyRightEdge;
                 int startX = currentPenaltyRightEdge - weightPx;
-                drawStripesHUD(gfx, sBarX + startX, sBarY, weightPx, sBarH, weightCol);
-                if (showIcons) drawIcon(gfx, sBarX + startX, sBarY, weightPx, sBarH, ICON_WEIGHT, weightCol);
+                drawStripesHUD(gfx, sBarX + startX, sBarY, weightPx, sBarH, weightCol, renderAlpha);
+                if (showIcons) drawIcon(gfx, sBarX + startX, sBarY, weightPx, sBarH, ICON_WEIGHT, weightCol, renderAlpha);
                 gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
                 currentPenaltyRightEdge -= weightPx;
             }
@@ -238,10 +312,11 @@ public class ClientStaminaEvents {
                     if (pPx > 0 && currentPenaltyRightEdge > 0) {
                         if (pPx > currentPenaltyRightEdge) pPx = currentPenaltyRightEdge;
                         int startX = currentPenaltyRightEdge - pPx;
-                        drawStripesHUD(gfx, sBarX + startX, sBarY, pPx, sBarH, 0xFF000000 | color);
+                        int customCol = applyAlpha(0xFF000000 | color, renderAlpha);
+                        drawStripesHUD(gfx, sBarX + startX, sBarY, pPx, sBarH, customCol, renderAlpha);
                         if (showIcons && i < cachedPenaltyIcons.size()) {
                             String icon = cachedPenaltyIcons.get(i);
-                            if (icon != null) drawIcon(gfx, sBarX + startX, sBarY, pPx, sBarH, icon, 0xFF000000 | color);
+                            if (icon != null) drawIcon(gfx, sBarX + startX, sBarY, pPx, sBarH, icon, customCol, renderAlpha);
                         }
                         gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
                         currentPenaltyRightEdge -= pPx;
@@ -251,18 +326,18 @@ public class ClientStaminaEvents {
             
             int colorTop;
             int colorBottom;
-            int safeCol = 0xFF000000 | StaminaConfig.CLIENT.colorSafe.get();
-            int critCol = 0xFF000000 | StaminaConfig.CLIENT.colorCritical.get();
-            int tirelessCol = 0xFF000000 | StaminaConfig.CLIENT.colorTireless.get();
+            int safeCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorSafe.get(), renderAlpha);
+            int critCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorCritical.get(), renderAlpha);
+            int tirelessCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorTireless.get(), renderAlpha);
             if (hasInfiniteStamina(mc.player)) {
                 colorBottom = tirelessCol;
-                colorTop = tirelessCol + 0x002222;
+                colorTop = applyAlpha((0xFF000000 | StaminaConfig.CLIENT.colorTireless.get()) + 0x002222, renderAlpha);
             } else if (displayedStamina <= (baseMax * StaminaConfig.COMMON.fatigueThreshold.get())) {
                 colorBottom = critCol;
-                colorTop = critCol + 0x222222;
+                colorTop = applyAlpha((0xFF000000 | StaminaConfig.CLIENT.colorCritical.get()) + 0x222222, renderAlpha);
             } else {
                 colorBottom = safeCol;
-                colorTop = safeCol + 0x222222;
+                colorTop = applyAlpha((0xFF000000 | StaminaConfig.CLIENT.colorSafe.get()) + 0x222222, renderAlpha);
             }
 
             int normalW = (int) (displayedStamina * pxScale);
@@ -279,7 +354,6 @@ public class ClientStaminaEvents {
                 float totalBonusPx = displayedBonusStamina * effectivePenaltyScale;
                 int fullBars = (int) (totalBonusPx / currentPenaltyRightEdge);
                 int remainderPx = (int) (totalBonusPx % currentPenaltyRightEdge);
-
                 if (fullBars > 0 && remainderPx == 0) {
                     fullBars--;
                     remainderPx = currentPenaltyRightEdge;
@@ -288,16 +362,15 @@ public class ClientStaminaEvents {
                 int bTopRGB = StaminaConfig.CLIENT.colorBonusTop.get();
                 int bBotRGB = StaminaConfig.CLIENT.colorBonusBottom.get();
                 int hRGB = StaminaConfig.CLIENT.colorBonusHighlight.get();
-                int hAlpha = StaminaConfig.CLIENT.bonusHighlightAlpha.get();
-
+                int hAlpha = (int) (StaminaConfig.CLIENT.bonusHighlightAlpha.get() * renderAlpha);
+                
                 if (fullBars > 0) {
                     int underTier = fullBars - 1;
                     float uFactor = 1.0f - ((underTier % 3) * 0.35f); 
                     int uTop = shadeColor(bTopRGB, uFactor);
                     int uBot = shadeColor(bBotRGB, uFactor);
-                    int underTopCol = 0xFF000000 | uTop;
-                    int underBotCol = 0xFF000000 | uBot;
-
+                    int underTopCol = applyAlpha(0xFF000000 | uTop, renderAlpha);
+                    int underBotCol = applyAlpha(0xFF000000 | uBot, renderAlpha);
                     gfx.fillGradient(sBarX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH, underTopCol, underBotCol);
                     
                     int sheenCol = (hAlpha << 24) | hRGB;
@@ -313,9 +386,8 @@ public class ClientStaminaEvents {
                     float oFactor = 1.0f - ((overTier % 3) * 0.35f);
                     int oTop = shadeColor(bTopRGB, oFactor);
                     int oBot = shadeColor(bBotRGB, oFactor);
-                    int overTopCol = 0xFF000000 | oTop;
-                    int overBotCol = 0xFF000000 | oBot;
-
+                    int overTopCol = applyAlpha(0xFF000000 | oTop, renderAlpha);
+                    int overBotCol = applyAlpha(0xFF000000 | oBot, renderAlpha);
                     gfx.fillGradient(sBarX, sBarY, sBarX + remainderPx, sBarY + sBarH, overTopCol, overBotCol);
                     
                     int sheenCol = (hAlpha << 24) | hRGB;
@@ -326,13 +398,12 @@ public class ClientStaminaEvents {
                     }
 
                     if (remainderPx < currentPenaltyRightEdge) {
-                         gfx.fill(sBarX + remainderPx, sBarY, sBarX + remainderPx + 1, sBarY + sBarH, 0xFFFFFFFF);
+                         gfx.fill(sBarX + remainderPx, sBarY, sBarX + remainderPx + 1, sBarY + sBarH, applyAlpha(0xFFFFFFFF, renderAlpha));
                     }
                 }
 
                 if (fullBars > 0) {
                     String multText = (fullBars + 1) + "x";
-                    
                     gfx.pose().pushPose();
                     float scale = 0.6f;
                     int textWidth = mc.font.width(multText);
@@ -341,7 +412,7 @@ public class ClientStaminaEvents {
                     
                     gfx.pose().translate(textX, textY, 0);
                     gfx.pose().scale(scale, scale, 1.0f);
-                    gfx.drawString(mc.font, multText, 0, 0, 0xFFFFD700, true);
+                    gfx.drawString(mc.font, multText, 0, 0, applyAlpha(0xFFFFD700, renderAlpha), true);
                     gfx.pose().popPose();
                 }
             }
@@ -384,23 +455,14 @@ public class ClientStaminaEvents {
                     gfx.pose().pushPose();
                     gfx.pose().translate(targetX, targetY, 0);
                     gfx.pose().scale(scale, scale, 1.0f);
-                    gfx.drawString(mc.font, regenComp, 0, 0, regenColor, true);
-
+                    gfx.drawString(mc.font, regenComp, 0, 0, applyAlpha(regenColor, renderAlpha), true);
                     gfx.pose().popPose();
                 }
             }
         });
     }
-
-    @SubscribeEvent
-    public static void onLeftClickEmpty(net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickEmpty event) {
-        if (!StaminaConfig.COMMON.enableStamina.get()) return;
-        if (StaminaConfig.COMMON.depletionMissedAttack.get() > 0) {
-             com.peakstamina.network.StaminaNetwork.CHANNEL.sendToServer(new com.peakstamina.network.PacketMissedAttack());
-        }
-    }
-
-    private static void drawIcon(GuiGraphics gfx, int x, int y, int w, int h, String text, int color) {
+    
+    private static void drawIcon(GuiGraphics gfx, int x, int y, int w, int h, String text, int color, float alpha) {
         if (text == null || text.isEmpty()) {
             return;
         }
@@ -435,7 +497,7 @@ public class ClientStaminaEvents {
         float drawX = -textWidth / 2.0f;
         float drawY = localBarHalfH - fontHeight + 1.0f;
 
-        int shadowColor = 0x88000000;
+        int shadowColor = applyAlpha(0x88000000, alpha);
         gfx.drawString(font, text, (int) drawX - 1, (int) drawY, shadowColor, false);
         gfx.drawString(font, text, (int) drawX + 1, (int) drawY, shadowColor, false);
         gfx.drawString(font, text, (int) drawX, (int) drawY - 1, shadowColor, false);
@@ -449,7 +511,7 @@ public class ClientStaminaEvents {
         gfx.pose().popPose();
     }
 
-    private static void drawStripesHUD(GuiGraphics gfx, int x, int y, int w, int h, int colorRGB) {
+    private static void drawStripesHUD(GuiGraphics gfx, int x, int y, int w, int h, int colorRGB, float alpha) {
         if (w <= 0) {
             return;
         }
@@ -461,7 +523,7 @@ public class ClientStaminaEvents {
         int r = (colorRGB >> 16) & 0xFF;
         int g = (colorRGB >> 8) & 0xFF;
         int b = colorRGB & 0xFF;
-        int a = 200;
+        int a = (int) (200 * alpha);
         Tesselator tesselator = Tesselator.getInstance();
         BufferBuilder buffer = tesselator.getBuilder();
         RenderSystem.setShader(GameRenderer::getPositionColorShader);

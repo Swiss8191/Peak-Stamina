@@ -38,19 +38,32 @@ import com.peakstamina.handlers.WeightHandler;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 
 import java.util.*;
+import net.minecraft.world.item.Item;
+import java.util.Map;
+import java.util.HashMap;
 
 @Mod.EventBusSubscriber(modid = peakStaminaMod.MODID)
 public class ServerStaminaHandler {
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final UUID EXHAUSTED_SPEED_UUID = UUID.fromString("73411111-2222-3333-4444-555555555555");
+
     private static List<UniversalPenaltyData> cachedUniversalPenalties = null;
     private static List<? extends String> lastUniversalConfigRef = null;
+
+    private static List<UniversalBuffData> cachedUniversalBuffs = null;
+    private static List<? extends String> lastBuffConfigRef = null;
 
     private static List<ExhaustionPenaltyData> cachedExhaustionPenalties = null;
     private static List<? extends String> lastExhaustionConfigRef = null;
 
+    private static final Map<Item, Map<String, Float>> ITEM_COST_CACHE = new HashMap<>();
+    private static final Map<net.minecraft.tags.TagKey<Item>, Map<String, Float>> TAG_COST_CACHE = new HashMap<>();
+    private static List<? extends String> lastItemCostConfigRef = null;
+    private static List<? extends String> lastItemCostTagConfigRef = null;
+
     private static class UniversalPenaltyData {
+
         String type;
         String key;
         String[] nbtPath;
@@ -63,7 +76,41 @@ public class ServerStaminaHandler {
         MobEffect effect;
     }
 
+    private static class UniversalBuffData {
+
+        String type;
+        String key;
+        String actionMode;
+        String[] nbtPath;
+        MobEffect effect;
+        double threshold;
+        double limitOrCooldown;
+        float amount;
+        float burstAmount;
+        float scalingFactor;
+    }
+
+    private static class ConsumableData {
+
+        double instantAmount = 0.0;
+        double regenAmount = 0.0;
+        double penaltyResistStrength = 0.0;
+        double poisonAmount = 0.0;
+        double bonusAmount = 0.0;
+        int durationTicks = 0;
+        boolean isInstant = false;
+        boolean isRegen = false;
+        boolean isPenalty = false;
+        boolean isPoison = false;
+        boolean isBonus = false;
+        List<java.util.AbstractMap.SimpleEntry<String, Double>> specificCures = new ArrayList<>();
+    }
+
+        private static final Map<Item, ConsumableData> CONSUMABLE_CACHE = new HashMap<>();
+    private static List<? extends String> lastConsumableConfigRef = null;
+
     private static class ExhaustionPenaltyData {
+
         net.minecraft.world.entity.ai.attributes.Attribute attribute;
         String attrName;
         double amount;
@@ -72,7 +119,9 @@ public class ServerStaminaHandler {
     }
 
     public static void consumeStamina(StaminaCapability cap, float amount) {
-        if (amount <= 0) return;
+        if (amount <= 0) {
+            return;
+        }
         if (cap.bonusStamina > 0) {
             if (cap.bonusStamina >= amount) {
                 cap.bonusStamina -= amount;
@@ -102,6 +151,112 @@ public class ServerStaminaHandler {
             }
         }
         return false;
+    }
+
+    public static void refreshItemCostCache(List<? extends String> itemCosts, List<? extends String> tagCosts) {
+        ITEM_COST_CACHE.clear();
+        TAG_COST_CACHE.clear();
+        lastItemCostConfigRef = itemCosts;
+        lastItemCostTagConfigRef = tagCosts;
+
+        for (String entry : itemCosts) {
+            try {
+                String[] parts = entry.split(";");
+                if (parts.length < 3) {
+                    continue;
+                }
+                ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
+                if (loc != null && ForgeRegistries.ITEMS.containsKey(loc)) {
+                    Item item = ForgeRegistries.ITEMS.getValue(loc);
+                    Map<String, Float> costs = new HashMap<>();
+                    for (int i = 1; i < parts.length - 1; i += 2) {
+                        if (parts[i].trim().equalsIgnoreCase("BLOCK") && i + 2 < parts.length) {
+                            costs.put("BLOCK_BASE", Float.parseFloat(parts[i + 1].trim()));
+                            costs.put("BLOCK_MULT", Float.parseFloat(parts[i + 2].trim()));
+                            i++; // Skip the extra arg
+                        } else {
+                            costs.put(parts[i].trim().toUpperCase(), Float.parseFloat(parts[i + 1].trim()));
+                        }
+                    }
+                    ITEM_COST_CACHE.put(item, costs);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        for (String entry : tagCosts) {
+            try {
+                String[] parts = entry.split(";");
+                if (parts.length < 3) {
+                    continue;
+                }
+                ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
+                if (loc != null) {
+                    net.minecraft.tags.TagKey<Item> tagKey = net.minecraft.tags.TagKey.create(ForgeRegistries.ITEMS.getRegistryKey(), loc);
+                    Map<String, Float> costs = new HashMap<>();
+                    for (int i = 1; i < parts.length - 1; i += 2) {
+                        if (parts[i].trim().equalsIgnoreCase("BLOCK") && i + 2 < parts.length) {
+                            costs.put("BLOCK_BASE", Float.parseFloat(parts[i + 1].trim()));
+                            costs.put("BLOCK_MULT", Float.parseFloat(parts[i + 2].trim()));
+                            i++;
+                        } else {
+                            costs.put(parts[i].trim().toUpperCase(), Float.parseFloat(parts[i + 1].trim()));
+                        }
+                    }
+                    TAG_COST_CACHE.put(tagKey, costs);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    public static void refreshConsumableCache(List<? extends String> consumableConfig) {
+        CONSUMABLE_CACHE.clear();
+        lastConsumableConfigRef = consumableConfig;
+
+        for (String entry : consumableConfig) {
+            try {
+                String[] parts = entry.split(";");
+                if (parts.length < 2) {
+                    continue;
+                }
+
+                ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
+                if (loc != null && ForgeRegistries.ITEMS.containsKey(loc)) {
+                    Item item = ForgeRegistries.ITEMS.getValue(loc);
+                    ConsumableData data = new ConsumableData();
+
+                    for (int i = 1; i < parts.length; i++) {
+                        String token = parts[i].trim().toUpperCase();
+                        if (token.equals("INSTANT") && i + 1 < parts.length) {
+                            data.instantAmount = Double.parseDouble(parts[++i].trim());
+                            data.isInstant = true;
+                        } else if (token.equals("BONUS") && i + 1 < parts.length) {
+                            data.bonusAmount = Double.parseDouble(parts[++i].trim());
+                            data.isBonus = true;
+                        } else if (token.equals("REGEN") && i + 2 < parts.length) {
+                            data.regenAmount = Double.parseDouble(parts[++i].trim());
+                            int sec = Integer.parseInt(parts[++i].trim());
+                            data.durationTicks = sec > 0 ? sec * 20 : -1;
+                            data.isRegen = true;
+                        } else if (token.equals("PENALTY") && i + 1 < parts.length) {
+                            data.penaltyResistStrength = Double.parseDouble(parts[++i].trim());
+                            data.isPenalty = true;
+                        } else if (token.equals("POISON") && i + 1 < parts.length) {
+                            data.poisonAmount = Double.parseDouble(parts[++i].trim());
+                            data.isPoison = true;
+                        } else if (token.equals("CURE") && i + 2 < parts.length) {
+                            String target = parts[++i].trim();
+                            double amount = Double.parseDouble(parts[++i].trim());
+                            data.specificCures.add(new java.util.AbstractMap.SimpleEntry<>(target, amount));
+                        }
+                    }
+                    CONSUMABLE_CACHE.put(item, data);
+                }
+            } catch (Exception e) {
+                LOGGER.error("Failed to parse consumable modifier: " + entry, e);
+            }
+        }
     }
 
     @SubscribeEvent
@@ -205,6 +360,11 @@ public class ServerStaminaHandler {
             refreshUniversalCache(currentUnivConfig);
         }
 
+        List<? extends String> currentBuffConfig = StaminaLists.LISTS.universalBuffs.get();
+        if (cachedUniversalBuffs == null || currentBuffConfig != lastBuffConfigRef) {
+            refreshBuffCache(currentBuffConfig);
+        }
+
         player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
             ParCoolCompat.tick(player, cap);
 
@@ -226,23 +386,24 @@ public class ServerStaminaHandler {
             if (cap.bonusStamina > 0) {
                 if (cap.bonusStaminaDecayTimer > 0) {
                     cap.bonusStaminaDecayTimer--;
-                } else if (player.tickCount % 20 == 0) { 
+                } else if (player.tickCount % 20 == 0) {
                     float decayAmount;
-                    
-                    // --- BONUS STAMINA ATTRIBUTE INTEGRATION ---
                     double bonusDecayRateMult = getAttributeValue(player, StaminaAttributes.BONUS_STAMINA_DECAY_RATE.get(), 1.0);
                     float rawRate = StaminaConfig.COMMON.bonusStaminaDecayRate.get().floatValue() * (float) bonusDecayRateMult;
-                    
                     if (StaminaConfig.COMMON.bonusDecayScalesWithAmount.get()) {
                         decayAmount = cap.bonusStamina * rawRate;
-                        if (decayAmount < 0.01f) decayAmount = 0.01f;
+                        if (decayAmount < 0.01f) {
+                            decayAmount = 0.01f;
+                        }
                     } else {
                         decayAmount = rawRate;
                     }
-                    
+
                     if (decayAmount > 0) {
                         cap.bonusStamina -= decayAmount;
-                        if (cap.bonusStamina < 0) cap.bonusStamina = 0;
+                        if (cap.bonusStamina < 0) {
+                            cap.bonusStamina = 0;
+                        }
                     }
                 }
             }
@@ -290,6 +451,7 @@ public class ServerStaminaHandler {
             targetHungerPenalty *= (float) penaltyAmountMult;
             float decayRate = StaminaConfig.COMMON.penaltyDecayRate.get().floatValue() * (float) penaltyDecayMult;
             float buildupRate = StaminaConfig.COMMON.penaltyBuildupRate.get().floatValue() * (float) penaltyGainMult;
+
             if (cap.currentHungerPenalty < targetHungerPenalty) {
                 float otherPenalties = cap.fatiguePenalty + cap.poisonPenalty + currentModPenaltySum + cap.weightPenalty;
                 float room = Math.max(0, maxAllowedPenalty - otherPenalties);
@@ -320,6 +482,15 @@ public class ServerStaminaHandler {
                 }
             }
 
+            if (cap.buffCooldowns == null || cap.buffCooldowns.length != cachedUniversalBuffs.size()) {
+                int[] newArray = new int[cachedUniversalBuffs.size()];
+                if (cap.buffCooldowns != null) {
+                    int copyLen = Math.min(cap.buffCooldowns.length, cachedUniversalBuffs.size());
+                    System.arraycopy(cap.buffCooldowns, 0, newArray, 0, copyLen);
+                }
+                cap.buffCooldowns = newArray;
+            }
+
             CompoundTag playerNBT = null;
             for (int i = 0; i < cachedUniversalPenalties.size(); i++) {
                 UniversalPenaltyData data = cachedUniversalPenalties.get(i);
@@ -334,11 +505,16 @@ public class ServerStaminaHandler {
                             currentValue = -1;
                         }
                     } else if (data.type.equals("NBT")) {
-                        if (playerNBT == null) {
-                            playerNBT = new CompoundTag();
-                            player.saveWithoutId(playerNBT);
+                        if (player.tickCount % 20 == 0) {
+                            if (playerNBT == null) {
+                                playerNBT = new CompoundTag();
+                                player.saveWithoutId(playerNBT);
+                            }
+                            currentValue = getNbtValue(playerNBT, data.nbtPath);
+                            cap.cachedNbtValues.put(data.key, currentValue);
+                        } else {
+                            currentValue = cap.cachedNbtValues.getOrDefault(data.key, Double.NaN);
                         }
-                        currentValue = getNbtValue(playerNBT, data.nbtPath);
                     }
 
                     if (!Double.isNaN(currentValue)) {
@@ -458,11 +634,111 @@ public class ServerStaminaHandler {
                 effectiveMax = minMax;
             }
             cap.maxStamina = effectiveMax;
-
             double capacityMult = getAttributeValue(player, StaminaAttributes.BONUS_STAMINA_CAPACITY.get(), 1.0);
             float maxBonus = cap.maxStamina * (float) capacityMult;
             if (cap.bonusStamina > maxBonus) {
                 cap.bonusStamina = maxBonus;
+            }
+
+            for (int i = 0; i < cachedUniversalBuffs.size(); i++) {
+                UniversalBuffData data = cachedUniversalBuffs.get(i);
+                boolean isPassive = data.actionMode.startsWith("PASSIVE");
+                boolean isBoth = data.actionMode.startsWith("BOTH");
+                boolean isBurst = data.actionMode.startsWith("BURST");
+                boolean isMultiplier = data.actionMode.endsWith("_MULTIPLIER");
+
+                if (isPassive && player.tickCount % 20 != 0) {
+                    continue;
+                }
+
+                try {
+                    double currentValue = Double.NaN;
+                    if (data.type.equals("EFFECT")) {
+                        if (data.effect != null && player.hasEffect(data.effect)) {
+                            currentValue = player.getEffect(data.effect).getAmplifier();
+                        } else {
+                            currentValue = -1;
+                        }
+                    } else if (data.type.equals("NBT")) {
+                        if (player.tickCount % 20 == 0) {
+                            if (playerNBT == null) {
+                                playerNBT = new CompoundTag();
+                                player.saveWithoutId(playerNBT);
+                            }
+                            currentValue = getNbtValue(playerNBT, data.nbtPath);
+                            cap.cachedNbtValues.put(data.key, currentValue);
+                        } else {
+                            currentValue = cap.cachedNbtValues.getOrDefault(data.key, Double.NaN);
+                        }
+                    }
+
+                    if (!Double.isNaN(currentValue)) {
+                        boolean conditionMet = false;
+                        if (data.actionMode.contains("_OVER")) {
+                            conditionMet = currentValue > data.threshold;
+                        } else if (data.actionMode.contains("_UNDER")) {
+                            conditionMet = currentValue < data.threshold;
+                        }
+
+                        if (conditionMet) {
+                            float multiplier = 1.0f;
+                            if (isMultiplier) {
+                                float diff = (float) Math.abs(currentValue - data.threshold);
+                                multiplier = 1.0f + (diff * (data.scalingFactor - 1.0f));
+                                if (multiplier < 0.0f) {
+                                    multiplier = 0.0f;
+                                }
+                            }
+
+                            float effectiveAmount = data.amount * multiplier;
+                            float effectiveBurst = data.burstAmount * multiplier;
+                            float effectiveCap = (isMultiplier && !isBurst) ? (float) data.limitOrCooldown * multiplier : (float) data.limitOrCooldown;
+                            boolean canRegenPassively = StaminaConfig.COMMON.universalBuffRegenWhileActive.get() || cap.staminaRegenDelay <= 0;
+
+                            if (isBoth || isBurst) {
+                                if (cap.buffCooldowns[i] == 0) {
+                                    float burstVal = isBoth ? effectiveBurst : effectiveAmount;
+                                    cap.bonusStamina += burstVal;
+                                    if (cap.bonusStamina > maxBonus) {
+                                        cap.bonusStamina = maxBonus;
+                                    }
+                                    double delayMult = getAttributeValue(player, StaminaAttributes.BONUS_STAMINA_DECAY_DELAY.get(), 1.0);
+                                    cap.bonusStaminaDecayTimer = (int) (StaminaConfig.COMMON.bonusStaminaDecayDelay.get() * delayMult);
+                                    cap.buffCooldowns[i] = 1;
+                                }
+
+                                if (isBoth && player.tickCount % 20 == 0 && canRegenPassively) {
+                                    float targetCap = Math.min(effectiveCap, maxBonus);
+                                    if (cap.bonusStamina < targetCap) {
+                                        cap.bonusStamina += effectiveAmount;
+                                        if (cap.bonusStamina > targetCap) {
+                                            cap.bonusStamina = targetCap;
+                                        }
+                                        double delayMult = getAttributeValue(player, StaminaAttributes.BONUS_STAMINA_DECAY_DELAY.get(), 1.0);
+                                        cap.bonusStaminaDecayTimer = (int) (StaminaConfig.COMMON.bonusStaminaDecayDelay.get() * delayMult);
+                                    }
+                                }
+                            } else if (isPassive) {
+                                if (canRegenPassively) {
+                                    float targetCap = Math.min(effectiveCap, maxBonus);
+                                    if (cap.bonusStamina < targetCap) {
+                                        cap.bonusStamina += effectiveAmount;
+                                        if (cap.bonusStamina > targetCap) {
+                                            cap.bonusStamina = targetCap;
+                                        }
+                                        double delayMult = getAttributeValue(player, StaminaAttributes.BONUS_STAMINA_DECAY_DELAY.get(), 1.0);
+                                        cap.bonusStaminaDecayTimer = (int) (StaminaConfig.COMMON.bonusStaminaDecayDelay.get() * delayMult);
+                                    }
+                                }
+                            }
+                        } else {
+                            if (isBoth || isBurst) {
+                                cap.buffCooldowns[i] = 0;
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
             }
 
             boolean isConsuming = false;
@@ -477,6 +753,7 @@ public class ServerStaminaHandler {
                 double climbMult = getAttributeValue(player, StaminaAttributes.CLIMB_COST_MULTIPLIER.get(), 1.0);
                 double sprintMult = getAttributeValue(player, StaminaAttributes.SPRINT_COST_MULTIPLIER.get(), 1.0);
                 double elytraMult = getAttributeValue(player, StaminaAttributes.ELYTRA_COST_MULTIPLIER.get(), 1.0);
+
                 if (player.isFallFlying() && elytraCost != 0) {
                     double finalCost;
                     if (elytraCost > 0) {
@@ -491,6 +768,7 @@ public class ServerStaminaHandler {
                         cap.stamina -= (float) finalCost;
                     }
                     isConsuming = elytraCost > 0;
+
                     if (cap.stamina <= 0 && StaminaConfig.COMMON.disableElytraWhenExhausted.get()) {
                         int interval = StaminaConfig.COMMON.exhaustedElytraTickInterval.get();
                         if (player.tickCount % interval == 0) {
@@ -520,7 +798,7 @@ public class ServerStaminaHandler {
                     } else {
                         finalCost = swimCost * actionRecoveryMult;
                     }
-                    
+
                     if (finalCost > 0) {
                         consumeStamina(cap, (float) finalCost);
                     } else {
@@ -534,7 +812,7 @@ public class ServerStaminaHandler {
                     } else {
                         finalCost = climbCost * actionRecoveryMult;
                     }
-                    
+
                     if (finalCost > 0) {
                         consumeStamina(cap, (float) finalCost);
                     } else {
@@ -548,7 +826,7 @@ public class ServerStaminaHandler {
                     } else {
                         finalCost = sprintCost * actionRecoveryMult;
                     }
-                    
+
                     if (finalCost > 0) {
                         consumeStamina(cap, (float) finalCost);
                     } else {
@@ -624,9 +902,13 @@ public class ServerStaminaHandler {
             }
 
             cap.lastTickStamina = cap.stamina;
-            boolean penaltiesActive = cap.currentHungerPenalty > 0 || totalModPenalty > 0 || cap.fatiguePenalty > 0 || cap.poisonPenalty > 0 || cap.weightPenalty > 0 || cap.bonusStamina > 0;
-            if (player.tickCount % 5 == 0 || isConsuming || penaltiesActive) {
+
+            boolean timeToSync = player.tickCount % 20 == 0;
+            boolean staminaChangedSignificantly = Math.abs(cap.stamina - cap.lastSyncedStamina) >= 1.0f;
+
+            if (timeToSync || staminaChangedSignificantly) {
                 sync((net.minecraft.server.level.ServerPlayer) player, cap);
+                cap.lastSyncedStamina = cap.stamina;
             }
         });
     }
@@ -655,7 +937,6 @@ public class ServerStaminaHandler {
                     data.threshold = Double.parseDouble(parts[3].trim());
                     data.worstValue = Double.parseDouble(parts[4].trim());
                     data.maxPenalty = Float.parseFloat(parts[5].trim());
-
                     if (data.type.equals("NBT")) {
                         data.nbtPath = data.key.split("\\.");
                     } else if (data.type.equals("EFFECT")) {
@@ -668,6 +949,46 @@ public class ServerStaminaHandler {
                 }
             } catch (Exception e) {
                 LOGGER.error("Failed to parse universal penalty rule: " + entry);
+            }
+        }
+    }
+
+    private static void refreshBuffCache(List<? extends String> configList) {
+        cachedUniversalBuffs = new ArrayList<>();
+        lastBuffConfigRef = configList;
+
+        for (String entry : configList) {
+            try {
+                String[] parts = entry.split(";");
+                if (parts.length >= 6) {
+                    UniversalBuffData data = new UniversalBuffData();
+                    data.type = parts[0].trim().toUpperCase();
+                    data.key = parts[1].trim();
+                    data.actionMode = parts[2].trim().toUpperCase();
+                    data.threshold = Double.parseDouble(parts[3].trim());
+                    data.limitOrCooldown = Double.parseDouble(parts[4].trim());
+                    data.amount = Float.parseFloat(parts[5].trim());
+
+                    if (data.actionMode.startsWith("BOTH")) {
+                        data.burstAmount = (parts.length >= 7) ? Float.parseFloat(parts[6].trim()) : data.amount;
+                        data.scalingFactor = (parts.length >= 8 && data.actionMode.endsWith("_MULTIPLIER")) ? Float.parseFloat(parts[7].trim()) : 1.0f;
+                    } else {
+                        data.burstAmount = 0.0f;
+                        data.scalingFactor = (parts.length >= 7 && data.actionMode.endsWith("_MULTIPLIER")) ? Float.parseFloat(parts[6].trim()) : 1.0f;
+                    }
+
+                    if (data.type.equals("NBT")) {
+                        data.nbtPath = data.key.split("\\.");
+                    } else if (data.type.equals("EFFECT")) {
+                        ResourceLocation loc = ResourceLocation.tryParse(data.key);
+                        if (loc != null && ForgeRegistries.MOB_EFFECTS.containsKey(loc)) {
+                            data.effect = ForgeRegistries.MOB_EFFECTS.getValue(loc);
+                        }
+                    }
+                    cachedUniversalBuffs.add(data);
+                }
+            } catch (Exception e) {
+                LOGGER.error("Failed to parse universal buff rule: " + entry);
             }
         }
     }
@@ -755,7 +1076,7 @@ public class ServerStaminaHandler {
             }
         }
 
-        List<? extends String> configList = StaminaLists.LISTS.customExhaustionPenalties.get(); 
+        List<? extends String> configList = StaminaLists.LISTS.customExhaustionPenalties.get();
         if (cachedExhaustionPenalties == null || configList != lastExhaustionConfigRef) {
             refreshExhaustionCache(configList);
         }
@@ -801,7 +1122,6 @@ public class ServerStaminaHandler {
             float jumpCost = StaminaConfig.COMMON.depletionJump.get().floatValue();
             double jumpMult = getAttributeValue(p, StaminaAttributes.JUMP_COST_MULTIPLIER.get(), 1.0);
             double actionRecoveryMult = getAttributeValue(p, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
-
             if (jumpCost != 0) {
                 p.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
                     double finalCost;
@@ -855,7 +1175,6 @@ public class ServerStaminaHandler {
             float attackCost = StaminaConfig.COMMON.depletionAttack.get().floatValue();
             double attackMult = getAttributeValue(player, StaminaAttributes.ATTACK_COST_MULTIPLIER.get(), 1.0);
             double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
-
             if (attackCost != 0) {
                 if (player.isSprinting()) {
                     player.getPersistentData().putBoolean("peak_stamina_restore_sprint", true);
@@ -910,7 +1229,6 @@ public class ServerStaminaHandler {
             float breakCost = StaminaConfig.COMMON.depletionBlockBreak.get().floatValue();
             double breakMult = getAttributeValue(player, StaminaAttributes.BLOCK_BREAK_COST_MULTIPLIER.get(), 1.0);
             double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
-
             if (breakCost != 0) {
                 player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
                     if (hasInfiniteStamina(player)) {
@@ -966,7 +1284,6 @@ public class ServerStaminaHandler {
 
         net.minecraft.world.item.ItemStack stack = event.getItemStack();
         float cost = getConfiguredItemCost(stack.getItem(), "USE_ON_BLOCK");
-
         if (cost > 0) {
 
             boolean isValidAction = false;
@@ -1055,7 +1372,6 @@ public class ServerStaminaHandler {
             float placeCost = StaminaConfig.COMMON.depletionBlockPlace.get().floatValue();
             double placeMult = getAttributeValue(player, StaminaAttributes.BLOCK_PLACE_COST_MULTIPLIER.get(), 1.0);
             double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
-
             if (placeCost != 0) {
                 player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
                     double finalCost;
@@ -1261,13 +1577,13 @@ public class ServerStaminaHandler {
                         event.setCancellationResult(net.minecraft.world.InteractionResult.FAIL);
                         return;
                     }
-                    
+
                     if (totalCost > 0) {
                         consumeStamina(cap, (float) totalCost);
                     } else {
                         cap.stamina -= (float) totalCost;
                     }
-                    
+
                     if (useCost > 0) {
                         cap.staminaRegenDelay = getRecoveryDelay(player);
                     }
@@ -1305,280 +1621,217 @@ public class ServerStaminaHandler {
             return;
         }
 
-        ResourceLocation itemReg = ForgeRegistries.ITEMS.getKey(event.getItem().getItem());
-        if (itemReg == null) {
+        Item item = event.getItem().getItem();
+        List<? extends String> currentConfig = StaminaLists.LISTS.consumableValues.get();
+
+        // Validate cache
+        if (lastConsumableConfigRef != currentConfig) {
+            refreshConsumableCache(currentConfig);
+        }
+
+        if (!CONSUMABLE_CACHE.containsKey(item)) {
             return;
         }
-        String itemId = itemReg.toString();
 
-        List<? extends String> modifiers = StaminaLists.LISTS.consumableValues.get();
-        for (String entry : modifiers) {
-            try {
-                String[] parts = entry.split(";");
-                if (parts.length < 2) {
-                    continue;
-                }
+        ConsumableData data = CONSUMABLE_CACHE.get(item);
 
-                String configId = parts[0].trim();
-                if (!configId.equals(itemId)) {
-                    continue;
-                }
-
-                double instantAmount = 0.0;
-                double regenAmount = 0.0;
-                double penaltyResistStrength = 0.0;
-                double poisonAmount = 0.0;
-                double bonusAmount = 0.0;
-                int durationTicks = 0;
-                boolean isInstantFound = false;
-                boolean isRegenFound = false;
-                boolean isPenaltyFound = false;
-                boolean isPoisonFound = false;
-                boolean isBonusFound = false;
-                List<java.util.AbstractMap.SimpleEntry<String, Double>> specificCures = new ArrayList<>();
-
-                for (int i = 1; i < parts.length; i++) {
-                    String token = parts[i].trim().toUpperCase();
-                    if (token.equals("INSTANT") && i + 1 < parts.length) {
-                        instantAmount = Double.parseDouble(parts[++i].trim());
-                        isInstantFound = true;
-                    } else if (token.equals("BONUS") && i + 1 < parts.length) {
-                        bonusAmount = Double.parseDouble(parts[++i].trim());
-                        isBonusFound = true;
-                    } else if (token.equals("REGEN") && i + 2 < parts.length) {
-                        regenAmount = Double.parseDouble(parts[++i].trim());
-                        int sec = Integer.parseInt(parts[++i].trim());
-                        durationTicks = sec > 0 ? sec * 20 : -1;
-                        isRegenFound = true;
-                    } else if (token.equals("PENALTY") && i + 1 < parts.length) {
-                        penaltyResistStrength = Double.parseDouble(parts[++i].trim());
-                        isPenaltyFound = true;
-                    } else if (token.equals("POISON") && i + 1 < parts.length) {
-                        poisonAmount = Double.parseDouble(parts[++i].trim());
-                        isPoisonFound = true;
-                    } else if (token.equals("CURE") && i + 2 < parts.length) {
-                        String target = parts[++i].trim();
-                        double amount = Double.parseDouble(parts[++i].trim());
-                        specificCures.add(new java.util.AbstractMap.SimpleEntry<>(target, amount));
-                    }
-                }
-
-                final boolean isInstant = isInstantFound;
-                final boolean isRegen = isRegenFound;
-                final boolean isPenalty = isPenaltyFound;
-                final boolean isPoison = isPoisonFound;
-                final boolean isBonus = isBonusFound;
-                final double finalInstant = instantAmount;
-                final double finalRegen = regenAmount;
-                final double finalPenaltyResist = penaltyResistStrength;
-                final double finalPoison = poisonAmount;
-                final double finalBonus = bonusAmount;
-                final int finalDuration = durationTicks;
-                player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
-                    double baseAttr = 100.0;
-                    AttributeInstance attr = player.getAttribute(StaminaAttributes.MAX_STAMINA.get());
-                    if (attr != null) {
-                        baseAttr = attr.getValue();
-                    }
-
-                    if (isPoison) {
-                        double maxPoison = StaminaConfig.COMMON.maxPoisonPenalty.get();
-                        double amount = finalPoison * getAttributeValue(player, StaminaAttributes.PENALTY_AMOUNT_MULTIPLIER.get(), 1.0);
-
-                        float minMax = StaminaConfig.COMMON.minMaxStamina.get().floatValue();
-                        float maxAllowedPenalty = (float) baseAttr - minMax;
-
-                        float currentModSum = 0;
-                        if (cap.penaltyValues != null) {
-                            for (float f : cap.penaltyValues) {
-                                currentModSum += f;
-                            }
-                        }
-                        float otherPenalties = cap.fatiguePenalty + cap.currentHungerPenalty + currentModSum;
-                        float room = Math.max(0, maxAllowedPenalty - otherPenalties);
-
-                        float potentialPoison = cap.poisonPenalty + (float) amount;
-                        potentialPoison = Math.min(potentialPoison, (float) maxPoison);
-                        potentialPoison = Math.min(potentialPoison, room);
-
-                        cap.poisonPenalty = potentialPoison;
-                        cap.poisonTimer = StaminaConfig.COMMON.poisonDecayDelay.get() * 20;
-                    }
-
-                    if (isPenalty) {
-                        int finalPenDuration = StaminaConfig.COMMON.penaltyReliefDuration.get() * 20;
-                        double addedReduction = Math.min(finalPenaltyResist / 100.0, 0.50);
-                        double totalReduction = 0.30 + addedReduction;
-                        double modifierValue = -totalReduction;
-                        String attrName = StaminaAttributes.PENALTY_GAIN_MULTIPLIER.getId().toString();
-                        int op = 1;
-
-                        StaminaCapability.BuffInstance existingBuff = null;
-                        for (StaminaCapability.BuffInstance b : cap.activeBuffs) {
-                            if (b.attributeName.equals(attrName)) {
-                                existingBuff = b;
-                                break;
-                            }
-                        }
-
-                        boolean shouldApply = false;
-                        if (existingBuff == null) {
-                            shouldApply = true;
-                        } else {
-                            if (modifierValue < existingBuff.amount) {
-                                shouldApply = true;
-                            }
-                        }
-
-                        if (shouldApply) {
-                            if (existingBuff != null) {
-                                cap.activeBuffs.remove(existingBuff);
-                                removeBuffModifier(player, existingBuff);
-                            }
-                            StaminaCapability.BuffInstance newBuff = new StaminaCapability.BuffInstance(attrName, modifierValue, op, finalPenDuration);
-                            cap.activeBuffs.add(newBuff);
-                            applyBuffModifier(player, newBuff);
-                        }
-                    }
-
-                    for (java.util.AbstractMap.SimpleEntry<String, Double> cure : specificCures) {
-                        String target = cure.getKey();
-                        float amount = cure.getValue().floatValue();
-
-                        if (target.equalsIgnoreCase("ALL")) {
-                            cap.fatiguePenalty = Math.max(0.0f, cap.fatiguePenalty - amount);
-                            cap.currentHungerPenalty = Math.max(0.0f, cap.currentHungerPenalty - amount);
-                            cap.poisonPenalty = Math.max(0.0f, cap.poisonPenalty - amount);
-                            if (cap.penaltyValues != null) {
-                                for (int i = 0; i < cap.penaltyValues.length; i++) {
-                                    cap.penaltyValues[i] = Math.max(0.0f, cap.penaltyValues[i] - amount);
-                                }
-                            }
-                        } else if (target.equalsIgnoreCase("FATIGUE")) {
-                            cap.fatiguePenalty = Math.max(0.0f, cap.fatiguePenalty - amount);
-                        } else if (target.equalsIgnoreCase("HUNGER")) {
-                            cap.currentHungerPenalty = Math.max(0.0f, cap.currentHungerPenalty - amount);
-                        } else if (target.equalsIgnoreCase("POISON")) {
-                            cap.poisonPenalty = Math.max(0.0f, cap.poisonPenalty - amount);
-                        } else {
-                            if (cachedUniversalPenalties != null && cap.penaltyValues != null) {
-                                for (int i = 0; i < cachedUniversalPenalties.size(); i++) {
-                                     if (i >= cap.penaltyValues.length) {
-                                        break;
-                                    }
-                                    UniversalPenaltyData data = cachedUniversalPenalties.get(i);
-                                    if (data.key.equals(target) || data.key.endsWith(":" + target) || (target.contains(":") && data.key.equals(target))) {
-                                        cap.penaltyValues[i] = Math.max(0.0f, cap.penaltyValues[i] - amount);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    float minMax = StaminaConfig.COMMON.minMaxStamina.get().floatValue();
-                    float totalModPenalty = 0.0f;
-                    if (cap.penaltyValues != null) {
-                        for (float f : cap.penaltyValues) {
-                            totalModPenalty += f;
-                        }
-                    }
-
-                    float effectiveMax = (float) baseAttr - cap.fatiguePenalty - cap.currentHungerPenalty - cap.poisonPenalty - totalModPenalty - cap.weightPenalty;
-                    if (effectiveMax < minMax) {
-                        effectiveMax = minMax;
-                    }
-                    cap.maxStamina = effectiveMax;
-                    if (cap.stamina > cap.maxStamina) {
-                        cap.stamina = cap.maxStamina;
-                    }
-
-                    if (isInstant) {
-                        float amountToAdd = (float) finalInstant;
-                        float space = cap.maxStamina - cap.stamina;
-                        
-                        if (amountToAdd <= space) {
-                            cap.stamina += amountToAdd;
-                        } else {
-                            cap.stamina = cap.maxStamina;
-                            if (StaminaConfig.COMMON.enableExcessStaminaConversion.get()) {
-                                float excess = amountToAdd - space;
-     
-                                double conversionMult = getAttributeValue(player, StaminaAttributes.EXCESS_CONVERSION_MULTIPLIER.get(), 1.0);
-                                float conversionRate = StaminaConfig.COMMON.excessConversionRate.get().floatValue() * (float) conversionMult;
-                                
-                                float bonusToAdd = excess * conversionRate;
-                                if (bonusToAdd > 0) {
-                                    cap.bonusStamina += bonusToAdd;
-                                }
-                            }
-                        }
-                        
-                        if (finalInstant > 0) {
-                            cap.staminaRegenDelay = 0;
-
-                            double delayMult = getAttributeValue(player, StaminaAttributes.BONUS_STAMINA_DECAY_DELAY.get(), 1.0);
-                            cap.bonusStaminaDecayTimer = (int) (StaminaConfig.COMMON.bonusStaminaDecayDelay.get() * delayMult);
-                        }
-                    }
-
-                    if (isBonus) {
-                        cap.bonusStamina += (float) finalBonus;
-
-                        double delayMult = getAttributeValue(player, StaminaAttributes.BONUS_STAMINA_DECAY_DELAY.get(), 1.0);
-                        cap.bonusStaminaDecayTimer = (int) (StaminaConfig.COMMON.bonusStaminaDecayDelay.get() * delayMult);
-                    }
-
-                    double capacityMult = getAttributeValue(player, StaminaAttributes.BONUS_STAMINA_CAPACITY.get(), 1.0);
-                    float maxBonus = cap.maxStamina * (float) capacityMult;
-                    if (cap.bonusStamina > maxBonus) {
-                        cap.bonusStamina = maxBonus;
-                    }
-
-                    if (isRegen) {
-                        String attrName = StaminaAttributes.STAMINA_REGEN.getId().toString();
-                        int op = 1;
-
-                        StaminaCapability.BuffInstance existingBuff = null;
-                        for (StaminaCapability.BuffInstance b : cap.activeBuffs) {
-                            if (b.attributeName.equals(attrName)) {
-                                existingBuff = b;
-                                break;
-                            }
-                        }
-
-                        boolean shouldApply = false;
-                        if (existingBuff == null) {
-                            shouldApply = true;
-                        } else {
-                            if (finalRegen < 0) {
-                                if (finalRegen < existingBuff.amount) {
-                                    shouldApply = true;
-                                }
-                            } else {
-                                if (existingBuff.amount >= 0 && finalRegen > existingBuff.amount) {
-                                    shouldApply = true;
-                                }
-                            }
-                        }
-
-                        if (shouldApply) {
-                            if (existingBuff != null) {
-                                cap.activeBuffs.remove(existingBuff);
-                                removeBuffModifier(player, existingBuff);
-                            }
-                            StaminaCapability.BuffInstance newBuff = new StaminaCapability.BuffInstance(attrName, finalRegen, op, finalDuration);
-                            cap.activeBuffs.add(newBuff);
-                            applyBuffModifier(player, newBuff);
-                        }
-                    }
-
-                    sync((net.minecraft.server.level.ServerPlayer) player, cap);
-                });
-
-            } catch (Exception e) {
-                LOGGER.error("Failed to parse consumable modifier: " + entry, e);
+        player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
+            double baseAttr = 100.0;
+            AttributeInstance attr = player.getAttribute(StaminaAttributes.MAX_STAMINA.get());
+            if (attr != null) {
+                baseAttr = attr.getValue();
             }
-        }
+
+            if (data.isPoison) {
+                double maxPoison = StaminaConfig.COMMON.maxPoisonPenalty.get();
+                double amount = data.poisonAmount * getAttributeValue(player, StaminaAttributes.PENALTY_AMOUNT_MULTIPLIER.get(), 1.0);
+
+                float minMax = StaminaConfig.COMMON.minMaxStamina.get().floatValue();
+                float maxAllowedPenalty = (float) baseAttr - minMax;
+
+                float currentModSum = 0;
+                if (cap.penaltyValues != null) {
+                    for (float f : cap.penaltyValues) {
+                        currentModSum += f;
+                    }
+                }
+                float otherPenalties = cap.fatiguePenalty + cap.currentHungerPenalty + currentModSum;
+                float room = Math.max(0, maxAllowedPenalty - otherPenalties);
+
+                float potentialPoison = cap.poisonPenalty + (float) amount;
+                potentialPoison = Math.min(potentialPoison, (float) maxPoison);
+                potentialPoison = Math.min(potentialPoison, room);
+
+                cap.poisonPenalty = potentialPoison;
+                cap.poisonTimer = StaminaConfig.COMMON.poisonDecayDelay.get() * 20;
+            }
+
+            if (data.isPenalty) {
+                int finalPenDuration = StaminaConfig.COMMON.penaltyReliefDuration.get() * 20;
+                double addedReduction = Math.min(data.penaltyResistStrength / 100.0, 0.50);
+                double totalReduction = 0.30 + addedReduction;
+                double modifierValue = -totalReduction;
+                String attrName = StaminaAttributes.PENALTY_GAIN_MULTIPLIER.getId().toString();
+                int op = 1;
+
+                StaminaCapability.BuffInstance existingBuff = null;
+                for (StaminaCapability.BuffInstance b : cap.activeBuffs) {
+                    if (b.attributeName.equals(attrName)) {
+                        existingBuff = b;
+                        break;
+                    }
+                }
+
+                boolean shouldApply = false;
+                if (existingBuff == null) {
+                    shouldApply = true;
+                } else {
+                    if (modifierValue < existingBuff.amount) {
+                        shouldApply = true;
+                    }
+                }
+
+                if (shouldApply) {
+                    if (existingBuff != null) {
+                        cap.activeBuffs.remove(existingBuff);
+                        removeBuffModifier(player, existingBuff);
+                    }
+                    StaminaCapability.BuffInstance newBuff = new StaminaCapability.BuffInstance(attrName, modifierValue, op, finalPenDuration);
+                    cap.activeBuffs.add(newBuff);
+                    applyBuffModifier(player, newBuff);
+                }
+            }
+
+            for (java.util.AbstractMap.SimpleEntry<String, Double> cure : data.specificCures) {
+                String target = cure.getKey();
+                float amount = cure.getValue().floatValue();
+
+                if (target.equalsIgnoreCase("ALL")) {
+                    cap.fatiguePenalty = Math.max(0.0f, cap.fatiguePenalty - amount);
+                    cap.currentHungerPenalty = Math.max(0.0f, cap.currentHungerPenalty - amount);
+                    cap.poisonPenalty = Math.max(0.0f, cap.poisonPenalty - amount);
+                    if (cap.penaltyValues != null) {
+                        for (int i = 0; i < cap.penaltyValues.length; i++) {
+                            cap.penaltyValues[i] = Math.max(0.0f, cap.penaltyValues[i] - amount);
+                        }
+                    }
+                } else if (target.equalsIgnoreCase("FATIGUE")) {
+                    cap.fatiguePenalty = Math.max(0.0f, cap.fatiguePenalty - amount);
+                } else if (target.equalsIgnoreCase("HUNGER")) {
+                    cap.currentHungerPenalty = Math.max(0.0f, cap.currentHungerPenalty - amount);
+                } else if (target.equalsIgnoreCase("POISON")) {
+                    cap.poisonPenalty = Math.max(0.0f, cap.poisonPenalty - amount);
+                } else {
+                    if (cachedUniversalPenalties != null && cap.penaltyValues != null) {
+                        for (int i = 0; i < cachedUniversalPenalties.size(); i++) {
+                            if (i >= cap.penaltyValues.length) {
+                                break;
+                            }
+                            UniversalPenaltyData penaltyData = cachedUniversalPenalties.get(i);
+                            if (penaltyData.key.equals(target) || penaltyData.key.endsWith(":" + target) || (target.contains(":") && penaltyData.key.equals(target))) {
+                                cap.penaltyValues[i] = Math.max(0.0f, cap.penaltyValues[i] - amount);
+                            }
+                        }
+                    }
+                }
+            }
+
+            float minMax = StaminaConfig.COMMON.minMaxStamina.get().floatValue();
+            float totalModPenalty = 0.0f;
+            if (cap.penaltyValues != null) {
+                for (float f : cap.penaltyValues) {
+                    totalModPenalty += f;
+                }
+            }
+
+            float effectiveMax = (float) baseAttr - cap.fatiguePenalty - cap.currentHungerPenalty - cap.poisonPenalty - totalModPenalty - cap.weightPenalty;
+            if (effectiveMax < minMax) {
+                effectiveMax = minMax;
+            }
+            cap.maxStamina = effectiveMax;
+            if (cap.stamina > cap.maxStamina) {
+                cap.stamina = cap.maxStamina;
+            }
+
+            if (data.isInstant) {
+                float amountToAdd = (float) data.instantAmount;
+                float space = cap.maxStamina - cap.stamina;
+
+                if (amountToAdd <= space) {
+                    cap.stamina += amountToAdd;
+                } else {
+                    cap.stamina = cap.maxStamina;
+                    if (StaminaConfig.COMMON.enableExcessStaminaConversion.get()) {
+                        float excess = amountToAdd - space;
+                        double conversionMult = getAttributeValue(player, StaminaAttributes.EXCESS_CONVERSION_MULTIPLIER.get(), 1.0);
+                        float conversionRate = StaminaConfig.COMMON.excessConversionRate.get().floatValue() * (float) conversionMult;
+
+                        float bonusToAdd = excess * conversionRate;
+                        if (bonusToAdd > 0) {
+                            cap.bonusStamina += bonusToAdd;
+                        }
+                    }
+                }
+
+                if (data.instantAmount > 0) {
+                    cap.staminaRegenDelay = 0;
+                    double delayMult = getAttributeValue(player, StaminaAttributes.BONUS_STAMINA_DECAY_DELAY.get(), 1.0);
+                    cap.bonusStaminaDecayTimer = (int) (StaminaConfig.COMMON.bonusStaminaDecayDelay.get() * delayMult);
+                }
+            }
+
+            if (data.isBonus) {
+                cap.bonusStamina += (float) data.bonusAmount;
+                double delayMult = getAttributeValue(player, StaminaAttributes.BONUS_STAMINA_DECAY_DELAY.get(), 1.0);
+                cap.bonusStaminaDecayTimer = (int) (StaminaConfig.COMMON.bonusStaminaDecayDelay.get() * delayMult);
+            }
+
+            double capacityMult = getAttributeValue(player, StaminaAttributes.BONUS_STAMINA_CAPACITY.get(), 1.0);
+            float maxBonus = cap.maxStamina * (float) capacityMult;
+            if (cap.bonusStamina > maxBonus) {
+                cap.bonusStamina = maxBonus;
+            }
+
+            if (data.isRegen) {
+                String attrName = StaminaAttributes.STAMINA_REGEN.getId().toString();
+                int op = 1;
+
+                StaminaCapability.BuffInstance existingBuff = null;
+                for (StaminaCapability.BuffInstance b : cap.activeBuffs) {
+                    if (b.attributeName.equals(attrName)) {
+                        existingBuff = b;
+                        break;
+                    }
+                }
+
+                boolean shouldApply = false;
+                if (existingBuff == null) {
+                    shouldApply = true;
+                } else {
+                    if (data.regenAmount < 0) {
+                        if (data.regenAmount < existingBuff.amount) {
+                            shouldApply = true;
+                        }
+                    } else {
+                        if (existingBuff.amount >= 0 && data.regenAmount > existingBuff.amount) {
+                            shouldApply = true;
+                        }
+                    }
+                }
+
+                if (shouldApply) {
+                    if (existingBuff != null) {
+                        cap.activeBuffs.remove(existingBuff);
+                        removeBuffModifier(player, existingBuff);
+                    }
+                    StaminaCapability.BuffInstance newBuff = new StaminaCapability.BuffInstance(attrName, data.regenAmount, op, data.durationTicks);
+                    cap.activeBuffs.add(newBuff);
+                    applyBuffModifier(player, newBuff);
+                }
+            }
+
+            sync((net.minecraft.server.level.ServerPlayer) player, cap);
+        });
     }
 
     private static void applyBuffModifier(Player player, StaminaCapability.BuffInstance buff) {
@@ -1629,75 +1882,21 @@ public class ServerStaminaHandler {
     }
 
     private static float getConfiguredItemCost(net.minecraft.world.item.Item item, String actionType) {
-        ResourceLocation itemReg = ForgeRegistries.ITEMS.getKey(item);
-        if (itemReg == null) {
-            return 0.0f;
-        }
-        String itemId = itemReg.toString();
+        List<? extends String> currentCosts = StaminaLists.LISTS.itemCosts.get();
+        List<? extends String> currentTags = StaminaLists.LISTS.itemCostTags.get();
 
-        List<? extends String> costs = StaminaLists.LISTS.itemCosts.get();
-        for (String entry : costs) {
-            try {
-                String[] parts = entry.split(";");
-                if (parts.length < 3) {
-                    continue;
-                }
-
-                String configId = parts[0].trim();
-                if (!configId.equals(itemId)) {
-                    continue;
-                }
-
-                int i = 1;
-                while (i < parts.length - 1) {
-                    String configType = parts[i].trim().toUpperCase();
-                    if (configType.equals("BLOCK")) {
-                        if (configType.equals(actionType)) {
-                            return Float.parseFloat(parts[i + 1].trim());
-                        }
-                        i += 3;
-                    } else {
-                        if (configType.equals(actionType)) {
-                            return Float.parseFloat(parts[i + 1].trim());
-                        }
-                        i += 2;
-                    }
-                }
-            } catch (Exception ignored) {
-            }
+        // Validate cache
+        if (lastItemCostConfigRef != currentCosts || lastItemCostTagConfigRef != currentTags) {
+            refreshItemCostCache(currentCosts, currentTags);
         }
 
-        List<? extends String> tagCosts = StaminaLists.LISTS.itemCostTags.get();
-        for (String entry : tagCosts) {
-            try {
-                String[] parts = entry.split(";");
-                if (parts.length < 3) {
-                    continue;
-                }
+        if (ITEM_COST_CACHE.containsKey(item)) {
+            return ITEM_COST_CACHE.get(item).getOrDefault(actionType, 0.0f);
+        }
 
-                String configId = parts[0].trim();
-                ResourceLocation tagLoc = ResourceLocation.tryParse(configId);
-                if (tagLoc != null) {
-                    net.minecraft.tags.TagKey<net.minecraft.world.item.Item> tagKey = net.minecraft.tags.TagKey.create(ForgeRegistries.ITEMS.getRegistryKey(), tagLoc);
-                    if (item.builtInRegistryHolder().is(tagKey)) {
-                        int i = 1;
-                        while (i < parts.length - 1) {
-                            String configType = parts[i].trim().toUpperCase();
-                            if (configType.equals("BLOCK")) {
-                                if (configType.equals(actionType)) {
-                                    return Float.parseFloat(parts[i + 1].trim());
-                                }
-                                i += 3;
-                            } else {
-                                if (configType.equals(actionType)) {
-                                    return Float.parseFloat(parts[i + 1].trim());
-                                }
-                                i += 2;
-                            }
-                        }
-                    }
-                }
-            } catch (Exception ignored) {
+        for (Map.Entry<net.minecraft.tags.TagKey<Item>, Map<String, Float>> entry : TAG_COST_CACHE.entrySet()) {
+            if (item.builtInRegistryHolder().is(entry.getKey())) {
+                return entry.getValue().getOrDefault(actionType, 0.0f);
             }
         }
 
@@ -1705,79 +1904,23 @@ public class ServerStaminaHandler {
     }
 
     private static float[] getShieldValues(net.minecraft.world.item.Item item) {
-        ResourceLocation itemReg = ForgeRegistries.ITEMS.getKey(item);
-        if (itemReg == null) {
-            return new float[]{0f, 0f};
-        }
-        String itemId = itemReg.toString();
+        List<? extends String> currentCosts = StaminaLists.LISTS.itemCosts.get();
+        List<? extends String> currentTags = StaminaLists.LISTS.itemCostTags.get();
 
-        List<? extends String> costs = StaminaLists.LISTS.itemCosts.get();
-        for (String entry : costs) {
-            try {
-                String[] parts = entry.split(";");
-                if (parts.length < 3) {
-                    continue;
-                }
-
-                String configId = parts[0].trim();
-                if (!configId.equals(itemId)) {
-                    continue;
-                }
-
-                int i = 1;
-                while (i < parts.length - 1) {
-                    String configType = parts[i].trim().toUpperCase();
-                    if (configType.equals("BLOCK")) {
-                        float base = 0f;
-                        float mult = 0f;
-                        if (i + 1 < parts.length) {
-                            base = Float.parseFloat(parts[i + 1].trim());
-                        }
-                        if (i + 2 < parts.length) {
-                            mult = Float.parseFloat(parts[i + 2].trim());
-                        }
-                        return new float[]{base, mult};
-                    } else {
-                        i += 2;
-                    }
-                }
-            } catch (Exception ignored) {
-            }
+        // Validate cache
+        if (lastItemCostConfigRef != currentCosts || lastItemCostTagConfigRef != currentTags) {
+            refreshItemCostCache(currentCosts, currentTags);
         }
 
-        List<? extends String> tagCosts = StaminaLists.LISTS.itemCostTags.get();
-        for (String entry : tagCosts) {
-            try {
-                String[] parts = entry.split(";");
-                if (parts.length < 3) {
-                    continue;
-                }
+        if (ITEM_COST_CACHE.containsKey(item)) {
+            Map<String, Float> map = ITEM_COST_CACHE.get(item);
+            return new float[]{map.getOrDefault("BLOCK_BASE", 0.0f), map.getOrDefault("BLOCK_MULT", 0.0f)};
+        }
 
-                String configId = parts[0].trim();
-                ResourceLocation tagLoc = ResourceLocation.tryParse(configId);
-                if (tagLoc != null) {
-                    net.minecraft.tags.TagKey<net.minecraft.world.item.Item> tagKey = net.minecraft.tags.TagKey.create(ForgeRegistries.ITEMS.getRegistryKey(), tagLoc);
-                    if (item.builtInRegistryHolder().is(tagKey)) {
-                        int i = 1;
-                        while (i < parts.length - 1) {
-                            String configType = parts[i].trim().toUpperCase();
-                            if (configType.equals("BLOCK")) {
-                                float base = 0f;
-                                float mult = 0f;
-                                if (i + 1 < parts.length) {
-                                    base = Float.parseFloat(parts[i + 1].trim());
-                                }
-                                if (i + 2 < parts.length) {
-                                    mult = Float.parseFloat(parts[i + 2].trim());
-                                }
-                                return new float[]{base, mult};
-                            } else {
-                                i += 2;
-                            }
-                        }
-                    }
-                }
-            } catch (Exception ignored) {
+        for (Map.Entry<net.minecraft.tags.TagKey<Item>, Map<String, Float>> entry : TAG_COST_CACHE.entrySet()) {
+            if (item.builtInRegistryHolder().is(entry.getKey())) {
+                Map<String, Float> map = entry.getValue();
+                return new float[]{map.getOrDefault("BLOCK_BASE", 0.0f), map.getOrDefault("BLOCK_MULT", 0.0f)};
             }
         }
 

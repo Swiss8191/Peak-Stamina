@@ -8,6 +8,7 @@ import net.minecraft.resources.ResourceLocation;
 import com.peakstamina.compat.ParCoolCompat;
 import com.peakstamina.compat.PackedUpCompat;
 import com.peakstamina.compat.ParCoolClientCompat;
+import com.peakstamina.config.ExperimentalConfig;
 import com.peakstamina.config.StaminaConfig;
 import com.peakstamina.config.StaminaLists; 
 import net.minecraftforge.api.distmarker.Dist;
@@ -35,6 +36,7 @@ public class peakStaminaMod {
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, StaminaConfig.COMMON_SPEC, "peakstamina/common.toml");
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, StaminaConfig.CLIENT_SPEC, "peakstamina/client.toml");
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, StaminaLists.LISTS_SPEC, "peakstamina/lists.toml");
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ExperimentalConfig.EXPERIMENTAL_SPEC, "peakstamina/experimental.toml");
 
         StaminaAttributes.ATTRIBUTES.register(modEventBus);
         modEventBus.addListener(this::attachAttributes);
