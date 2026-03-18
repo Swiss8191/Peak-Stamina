@@ -25,9 +25,6 @@ public class WeightHandler {
     private static final Map<Item, Double> itemWeightCache = new HashMap<>();
     private static final Map<TagKey<Item>, Double> tagWeightCache = new HashMap<>();
     private static final Map<Item, String> containerPathCache = new HashMap<>();
-    private static List<? extends String> lastItemConfig = null;
-    private static List<? extends String> lastTagConfig = null;
-    private static List<? extends String> lastContainerConfig = null;
 
     public static final List<CustomWeightProvider> CUSTOM_PROVIDERS = new ArrayList<>();
 
@@ -37,7 +34,6 @@ public class WeightHandler {
     }
 
     public static double calculateTotalWeight(Player player) {
-        validateCache();
         double totalWeight = 0.0;
         double baseHeuristic = StaminaConfig.COMMON.autoWeightBase.get();
 
@@ -60,7 +56,7 @@ public class WeightHandler {
 
     public static double getRecursiveStackWeight(ItemStack stack, double baseHeuristic, int depth) {
         if (stack.isEmpty()) return 0.0;
-
+        
         for (CustomWeightProvider provider : CUSTOM_PROVIDERS) {
             double customW = provider.getWeight(stack, baseHeuristic, depth);
             if (customW >= 0) return customW;
@@ -70,10 +66,11 @@ public class WeightHandler {
         if (depth >= StaminaConfig.COMMON.maxWeightRecursionDepth.get()) return weight;
 
         AtomicReference<Double> contentWeight = new AtomicReference<>(0.0);
-
-        if (containerPathCache.containsKey(stack.getItem()) && stack.hasTag()) {
+        CompoundTag stackTag = stack.getTag();
+        
+        if (stackTag != null && containerPathCache.containsKey(stack.getItem())) {
             String path = containerPathCache.get(stack.getItem());
-            ListTag list = getListTagFromPath(stack.getTag(), path);
+            ListTag list = getListTagFromPath(stackTag, path);
             
             if (list != null) {
                 for (int i = 0; i < list.size(); i++) {
@@ -95,15 +92,14 @@ public class WeightHandler {
                 }
             }
         });
-
+        
         if (contentWeight.get() > 0) {
             return weight + contentWeight.get();
         }
 
-        if (stack.hasTag()) {
-            CompoundTag tag = stack.getTag();
-            if (tag.contains("BlockEntityTag", Tag.TAG_COMPOUND)) {
-                CompoundTag bet = tag.getCompound("BlockEntityTag");
+        if (stackTag != null) {
+            if (stackTag.contains("BlockEntityTag", Tag.TAG_COMPOUND)) {
+                CompoundTag bet = stackTag.getCompound("BlockEntityTag");
                 if (bet.contains("Items", Tag.TAG_LIST)) {
                     ListTag list = bet.getList("Items", Tag.TAG_COMPOUND);
                     for (int i = 0; i < list.size(); i++) {
@@ -119,8 +115,8 @@ public class WeightHandler {
 
             String[] keysToCheck = {"Items", "Inventory", "inventory", "ItemsList"};
             for (String key : keysToCheck) {
-                if (tag.contains(key, Tag.TAG_LIST)) {
-                    ListTag list = tag.getList(key, Tag.TAG_COMPOUND);
+                if (stackTag.contains(key, Tag.TAG_LIST)) {
+                    ListTag list = stackTag.getList(key, Tag.TAG_COMPOUND);
                     for (int i = 0; i < list.size(); i++) {
                         CompoundTag itemTag = list.getCompound(i);
                         ItemStack subStack = ItemStack.of(itemTag);
@@ -195,64 +191,49 @@ public class WeightHandler {
         return singleWeight * count;
     }
 
-    private static void validateCache() {
+    public static void validateCache() {
         List<? extends String> itemConfig = StaminaLists.LISTS.customItemWeights.get();
         List<? extends String> tagConfig = StaminaLists.LISTS.customTagWeights.get();
         List<? extends String> containerConfig = StaminaLists.LISTS.customContainerPaths.get();
 
-        boolean isItemDirty = itemConfig != lastItemConfig;
-        boolean isTagDirty = tagConfig != lastTagConfig;
-        boolean isContainerDirty = containerConfig != lastContainerConfig;
-
-        if (!isItemDirty && !isTagDirty && !isContainerDirty) return;
-        
-        if (isItemDirty) {
-            itemWeightCache.clear();
-            lastItemConfig = itemConfig;
-            for (String entry : itemConfig) {
-                try {
-                    String[] parts = entry.split(";");
-                    if (parts.length >= 2) {
-                        ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
-                        if (loc != null && ForgeRegistries.ITEMS.containsKey(loc)) {
-                            itemWeightCache.put(ForgeRegistries.ITEMS.getValue(loc), Double.parseDouble(parts[1].trim()));
-                        }
+        itemWeightCache.clear();
+        for (String entry : itemConfig) {
+            try {
+                String[] parts = entry.split(";");
+                if (parts.length >= 2) {
+                    ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
+                    if (loc != null && ForgeRegistries.ITEMS.containsKey(loc)) {
+                        itemWeightCache.put(ForgeRegistries.ITEMS.getValue(loc), Double.parseDouble(parts[1].trim()));
                     }
-                } catch (Exception ignored) {}
-            }
+                }
+            } catch (Exception ignored) {}
         }
 
-        if (isTagDirty) {
-            tagWeightCache.clear();
-            lastTagConfig = tagConfig;
-            for (String entry : tagConfig) {
-                try {
-                    String[] parts = entry.split(";");
-                    if (parts.length >= 2) {
-                        ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
-                        if (loc != null) {
-                            TagKey<Item> tagKey = TagKey.create(ForgeRegistries.ITEMS.getRegistryKey(), loc);
-                            tagWeightCache.put(tagKey, Double.parseDouble(parts[1].trim()));
-                        }
+        tagWeightCache.clear();
+        for (String entry : tagConfig) {
+            try {
+                String[] parts = entry.split(";");
+                if (parts.length >= 2) {
+                    ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
+                    if (loc != null) {
+                        TagKey<Item> tagKey = TagKey.create(ForgeRegistries.ITEMS.getRegistryKey(), loc);
+                        tagWeightCache.put(tagKey, Double.parseDouble(parts[1].trim()));
                     }
-                } catch (Exception ignored) {}
-            }
+                }
+            } catch (Exception ignored) {}
         }
         
-        if (isContainerDirty) {
-            containerPathCache.clear();
-            lastContainerConfig = containerConfig;
-            for (String entry : containerConfig) {
-                try {
-                    String[] parts = entry.split(";");
-                    if (parts.length >= 2) {
-                        ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
-                        if (loc != null && ForgeRegistries.ITEMS.containsKey(loc)) {
-                            containerPathCache.put(ForgeRegistries.ITEMS.getValue(loc), parts[1].trim());
-                        }
+        containerPathCache.clear();
+        for (String entry : containerConfig) {
+            try {
+                String[] parts = entry.split(";");
+                if (parts.length >= 2) {
+                    ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
+                    if (loc != null && ForgeRegistries.ITEMS.containsKey(loc)) {
+                        containerPathCache.put(ForgeRegistries.ITEMS.getValue(loc), parts[1].trim());
                     }
-                } catch (Exception ignored) {}
-            }
+                }
+            } catch (Exception ignored) {}
         }
     }
 }

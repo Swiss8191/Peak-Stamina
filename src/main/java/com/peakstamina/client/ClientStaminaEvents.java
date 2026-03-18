@@ -52,6 +52,8 @@ public class ClientStaminaEvents {
     private static final List<Integer> cachedPenaltyColors = new ArrayList<>();
     private static final List<String> cachedPenaltyIcons = new ArrayList<>();
 
+    private static final ResourceLocation STAMINA_ICONS = new ResourceLocation(peakStaminaMod.MODID, "textures/gui/stamina_icons.png");
+
     @SubscribeEvent
     public static void onRenderGuiOverlayPost(RenderGuiOverlayEvent.Post event) {
         if (!StaminaConfig.COMMON.enableStamina.get()) {
@@ -60,6 +62,17 @@ public class ClientStaminaEvents {
         if (event.getOverlay().id().equals(VanillaGuiOverlay.EXPERIENCE_BAR.id())) {
             renderStaminaHUD(event.getGuiGraphics());
         }
+    }
+
+    @SubscribeEvent
+    public static void onLeftClickEmpty(net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickEmpty event) {
+        net.minecraft.world.entity.player.Player player = event.getEntity();
+        if (player == null) return;
+
+        if (!com.peakstamina.config.StaminaConfig.COMMON.enableStamina.get()) return;
+        if (player.isCreative() && com.peakstamina.config.StaminaConfig.COMMON.disableInCreative.get()) return;
+        if (player.isSpectator() && com.peakstamina.config.StaminaConfig.COMMON.disableInSpectator.get()) return;
+        com.peakstamina.network.StaminaNetwork.CHANNEL.sendToServer(new com.peakstamina.network.PacketMissedAttack());
     }
 
     private static void validateCache() {

@@ -29,9 +29,6 @@ public class MobStaminaHandler {
     private static final UUID MOB_EXHAUSTION_UUID = UUID.nameUUIDFromBytes("peakstamina_exhausted_mob".getBytes());
 
     private static final Map<String, MobStaminaData> MOB_STAMINA_CACHE = new HashMap<>();
-    private static List<? extends String> lastProfilesRef = null;
-    private static List<? extends String> lastMobsRef = null;
-
     private static class MobStaminaData {
 
         int maxAttacks;
@@ -45,51 +42,43 @@ public class MobStaminaHandler {
         }
     }
 
-    private static void refreshCacheIfNeeded() {
+    public static void refreshCache() {
         List<? extends String> currentProfiles = ExperimentalConfig.EXPERIMENTAL.exhaustionProfiles.get();
         List<? extends String> currentMobs = ExperimentalConfig.EXPERIMENTAL.customMobStamina.get();
+        
+        MOB_STAMINA_CACHE.clear();
 
-        if (currentProfiles != lastProfilesRef || currentMobs != lastMobsRef) {
-            MOB_STAMINA_CACHE.clear();
-            lastProfilesRef = currentProfiles;
-            lastMobsRef = currentMobs;
-
-            Map<String, Map<String, Double>> profileMap = new HashMap<>();
-            for (String entry : currentProfiles) {
-                try {
-                    String[] parts = entry.split(";");
-                    if (parts.length >= 2) {
-                        String profileName = parts[0].trim();
-                        Map<String, Double> attrs = new HashMap<>();
-
-                        String[] attrPairs = parts[1].split(",");
-                        for (String pair : attrPairs) {
-                            String[] kv = pair.split("=");
-                            if (kv.length == 2) {
-                                attrs.put(kv[0].trim(), Double.parseDouble(kv[1].trim()));
-                            }
+        Map<String, Map<String, Double>> profileMap = new HashMap<>();
+        for (String entry : currentProfiles) {
+            try {
+                String[] parts = entry.split(";");
+                if (parts.length >= 2) {
+                    String profileName = parts[0].trim();
+                    Map<String, Double> attrs = new HashMap<>();
+                    String[] attrPairs = parts[1].split(",");
+                    for (String pair : attrPairs) {
+                        String[] kv = pair.split("=");
+                        if (kv.length == 2) {
+                            attrs.put(kv[0].trim(), Double.parseDouble(kv[1].trim()));
                         }
-                        profileMap.put(profileName, attrs);
                     }
-                } catch (Exception ignored) {
+                    profileMap.put(profileName, attrs);
                 }
-            }
+            } catch (Exception ignored) {}
+        }
 
-            for (String entry : currentMobs) {
-                try {
-                    String[] parts = entry.split(";");
-                    if (parts.length >= 4) {
-                        String id = parts[0].trim();
-                        int attacks = Integer.parseInt(parts[1].trim());
-                        int ticks = Integer.parseInt(parts[2].trim());
-                        String profileName = parts[3].trim();
-
-                        Map<String, Double> linkedAttrs = profileMap.getOrDefault(profileName, new HashMap<>());
-                        MOB_STAMINA_CACHE.put(id, new MobStaminaData(attacks, ticks, linkedAttrs));
-                    }
-                } catch (Exception ignored) {
+        for (String entry : currentMobs) {
+            try {
+                String[] parts = entry.split(";");
+                if (parts.length >= 4) {
+                    String id = parts[0].trim();
+                    int attacks = Integer.parseInt(parts[1].trim());
+                    int ticks = Integer.parseInt(parts[2].trim());
+                    String profileName = parts[3].trim();
+                    Map<String, Double> linkedAttrs = profileMap.getOrDefault(profileName, new HashMap<>());
+                    MOB_STAMINA_CACHE.put(id, new MobStaminaData(attacks, ticks, linkedAttrs));
                 }
-            }
+            } catch (Exception ignored) {}
         }
     }
 
@@ -118,7 +107,6 @@ public class MobStaminaHandler {
                 processMobAttack(mob);
 
                 if (mob.getPersistentData().getInt("peak_exhaustion_timer") > 0 && projectile instanceof AbstractArrow arrow) {
-                    refreshCacheIfNeeded();
                     ResourceLocation typeId = ForgeRegistries.ENTITY_TYPES.getKey(mob.getType());
                     if (typeId != null) {
                         MobStaminaData data = MOB_STAMINA_CACHE.get(typeId.toString());
@@ -137,7 +125,6 @@ public class MobStaminaHandler {
     }
 
     private static void processMobAttack(Mob mob) {
-        refreshCacheIfNeeded();
         ResourceLocation typeId = ForgeRegistries.ENTITY_TYPES.getKey(mob.getType());
         if (typeId == null) {
             return;
@@ -219,7 +206,6 @@ public class MobStaminaHandler {
     }
 
     private static void removeExhaustionDebuffs(Mob mob) {
-        refreshCacheIfNeeded();
         ResourceLocation typeId = ForgeRegistries.ENTITY_TYPES.getKey(mob.getType());
         if (typeId != null) {
             MobStaminaData data = MOB_STAMINA_CACHE.get(typeId.toString());

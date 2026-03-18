@@ -28,7 +28,6 @@ public class ParCoolCompat {
     private static boolean isParCoolLoaded = false;
     private static Map<String, Float> startCostCache = null;
     private static Map<String, Float> continueCostCache = null;
-    private static List<? extends String> lastConfigRef = null;
 
     private static Field staminaInstanceField;
     private static final Map<Class<?>, Method> methodCache = new HashMap<>();
@@ -70,21 +69,17 @@ public class ParCoolCompat {
         }
     }
 
-    private static void refreshCache() {
+    public static void refreshCache() {
         List<? extends String> currentConfig = StaminaLists.LISTS.parCoolActionCosts.get();
-        if (startCostCache != null && currentConfig == lastConfigRef) {
-            return;
-        }
-
+        
         startCostCache = new HashMap<>();
         continueCostCache = new HashMap<>();
-        lastConfigRef = currentConfig;
+        
         for (String entry : currentConfig) {
             try {
                 String[] parts = entry.split(";");
-                if (parts.length < 2) {
-                    continue;
-                }
+                if (parts.length < 2) continue;
+                
                 String actionName = parts[0].trim();
                 for (int i = 1; i < parts.length - 1; i++) {
                     String type = parts[i].trim().toUpperCase();
@@ -94,18 +89,15 @@ public class ParCoolCompat {
                         continueCostCache.put(actionName, Float.parseFloat(parts[++i].trim()));
                     }
                 }
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
     }
 
     private static float getStartCost(Action action) {
-        refreshCache();
         return startCostCache.getOrDefault(action.getClass().getSimpleName(), 5.0f);
     }
 
     private static float getContinueCost(String actionName) {
-        refreshCache();
         return continueCostCache.getOrDefault(actionName, 0.2f);
     }
 

@@ -39,8 +39,6 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 
 import java.util.*;
 import net.minecraft.world.item.Item;
-import java.util.Map;
-import java.util.HashMap;
 
 @Mod.EventBusSubscriber(modid = peakStaminaMod.MODID)
 public class ServerStaminaHandler {
@@ -49,18 +47,11 @@ public class ServerStaminaHandler {
     private static final UUID EXHAUSTED_SPEED_UUID = UUID.fromString("73411111-2222-3333-4444-555555555555");
 
     private static List<UniversalPenaltyData> cachedUniversalPenalties = null;
-    private static List<? extends String> lastUniversalConfigRef = null;
-
     private static List<UniversalBuffData> cachedUniversalBuffs = null;
-    private static List<? extends String> lastBuffConfigRef = null;
-
     private static List<ExhaustionPenaltyData> cachedExhaustionPenalties = null;
-    private static List<? extends String> lastExhaustionConfigRef = null;
-
     private static final Map<Item, Map<String, Float>> ITEM_COST_CACHE = new HashMap<>();
     private static final Map<net.minecraft.tags.TagKey<Item>, Map<String, Float>> TAG_COST_CACHE = new HashMap<>();
-    private static List<? extends String> lastItemCostConfigRef = null;
-    private static List<? extends String> lastItemCostTagConfigRef = null;
+
 
     private static class UniversalPenaltyData {
 
@@ -107,7 +98,6 @@ public class ServerStaminaHandler {
     }
 
         private static final Map<Item, ConsumableData> CONSUMABLE_CACHE = new HashMap<>();
-    private static List<? extends String> lastConsumableConfigRef = null;
 
     private static class ExhaustionPenaltyData {
 
@@ -116,6 +106,14 @@ public class ServerStaminaHandler {
         double amount;
         AttributeModifier.Operation operation;
         UUID uuid;
+    }
+
+    public static void refreshAllCaches() {
+        refreshUniversalCache(StaminaLists.LISTS.universalPenalties.get());
+        refreshBuffCache(StaminaLists.LISTS.universalBuffs.get());
+        refreshExhaustionCache(StaminaLists.LISTS.customExhaustionPenalties.get());
+        refreshItemCostCache(StaminaLists.LISTS.itemCosts.get(), StaminaLists.LISTS.itemCostTags.get());
+        refreshConsumableCache(StaminaLists.LISTS.consumableValues.get());
     }
 
     public static void consumeStamina(StaminaCapability cap, float amount) {
@@ -156,8 +154,6 @@ public class ServerStaminaHandler {
     public static void refreshItemCostCache(List<? extends String> itemCosts, List<? extends String> tagCosts) {
         ITEM_COST_CACHE.clear();
         TAG_COST_CACHE.clear();
-        lastItemCostConfigRef = itemCosts;
-        lastItemCostTagConfigRef = tagCosts;
 
         for (String entry : itemCosts) {
             try {
@@ -212,7 +208,6 @@ public class ServerStaminaHandler {
 
     public static void refreshConsumableCache(List<? extends String> consumableConfig) {
         CONSUMABLE_CACHE.clear();
-        lastConsumableConfigRef = consumableConfig;
 
         for (String entry : consumableConfig) {
             try {
@@ -353,16 +348,6 @@ public class ServerStaminaHandler {
 
             final float fPen = newWeightPenalty;
             player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> cap.weightPenalty = fPen);
-        }
-
-        List<? extends String> currentUnivConfig = StaminaLists.LISTS.universalPenalties.get();
-        if (cachedUniversalPenalties == null || currentUnivConfig != lastUniversalConfigRef) {
-            refreshUniversalCache(currentUnivConfig);
-        }
-
-        List<? extends String> currentBuffConfig = StaminaLists.LISTS.universalBuffs.get();
-        if (cachedUniversalBuffs == null || currentBuffConfig != lastBuffConfigRef) {
-            refreshBuffCache(currentBuffConfig);
         }
 
         player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
@@ -915,7 +900,6 @@ public class ServerStaminaHandler {
 
     private static void refreshUniversalCache(List<? extends String> configList) {
         cachedUniversalPenalties = new ArrayList<>();
-        lastUniversalConfigRef = configList;
 
         for (String entry : configList) {
             try {
@@ -955,7 +939,6 @@ public class ServerStaminaHandler {
 
     private static void refreshBuffCache(List<? extends String> configList) {
         cachedUniversalBuffs = new ArrayList<>();
-        lastBuffConfigRef = configList;
 
         for (String entry : configList) {
             try {
@@ -995,7 +978,7 @@ public class ServerStaminaHandler {
 
     private static void refreshExhaustionCache(List<? extends String> configList) {
         cachedExhaustionPenalties = new ArrayList<>();
-        lastExhaustionConfigRef = configList;
+        
 
         for (String entry : configList) {
             try {
@@ -1074,11 +1057,6 @@ public class ServerStaminaHandler {
                     sprintAttr.removeModifier(EXHAUSTED_SPEED_UUID);
                 }
             }
-        }
-
-        List<? extends String> configList = StaminaLists.LISTS.customExhaustionPenalties.get();
-        if (cachedExhaustionPenalties == null || configList != lastExhaustionConfigRef) {
-            refreshExhaustionCache(configList);
         }
 
         for (ExhaustionPenaltyData data : cachedExhaustionPenalties) {
@@ -1622,12 +1600,6 @@ public class ServerStaminaHandler {
         }
 
         Item item = event.getItem().getItem();
-        List<? extends String> currentConfig = StaminaLists.LISTS.consumableValues.get();
-
-        // Validate cache
-        if (lastConsumableConfigRef != currentConfig) {
-            refreshConsumableCache(currentConfig);
-        }
 
         if (!CONSUMABLE_CACHE.containsKey(item)) {
             return;
@@ -1882,13 +1854,6 @@ public class ServerStaminaHandler {
     }
 
     private static float getConfiguredItemCost(net.minecraft.world.item.Item item, String actionType) {
-        List<? extends String> currentCosts = StaminaLists.LISTS.itemCosts.get();
-        List<? extends String> currentTags = StaminaLists.LISTS.itemCostTags.get();
-
-        // Validate cache
-        if (lastItemCostConfigRef != currentCosts || lastItemCostTagConfigRef != currentTags) {
-            refreshItemCostCache(currentCosts, currentTags);
-        }
 
         if (ITEM_COST_CACHE.containsKey(item)) {
             return ITEM_COST_CACHE.get(item).getOrDefault(actionType, 0.0f);
@@ -1904,13 +1869,6 @@ public class ServerStaminaHandler {
     }
 
     private static float[] getShieldValues(net.minecraft.world.item.Item item) {
-        List<? extends String> currentCosts = StaminaLists.LISTS.itemCosts.get();
-        List<? extends String> currentTags = StaminaLists.LISTS.itemCostTags.get();
-
-        // Validate cache
-        if (lastItemCostConfigRef != currentCosts || lastItemCostTagConfigRef != currentTags) {
-            refreshItemCostCache(currentCosts, currentTags);
-        }
 
         if (ITEM_COST_CACHE.containsKey(item)) {
             Map<String, Float> map = ITEM_COST_CACHE.get(item);
