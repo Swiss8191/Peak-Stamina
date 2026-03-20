@@ -62,6 +62,18 @@ public class StaminaConfig {
         public ForgeConfigSpec.DoubleValue depletionClimb;
         public ForgeConfigSpec.IntValue itemInterruptionCooldown;
 
+        public ForgeConfigSpec.BooleanValue attackCostScalesWithWeight;
+        public ForgeConfigSpec.DoubleValue attackWeightNormalizer;
+        public ForgeConfigSpec.DoubleValue attackWeightScaleFactor;
+        public ForgeConfigSpec.DoubleValue attackWeightMinMultiplier;
+        public ForgeConfigSpec.DoubleValue attackWeightMaxMultiplier;
+
+        public ForgeConfigSpec.BooleanValue missedAttackCostScalesWithWeight;
+        public ForgeConfigSpec.DoubleValue missedAttackWeightNormalizer;
+        public ForgeConfigSpec.DoubleValue missedAttackWeightScaleFactor;
+        public ForgeConfigSpec.DoubleValue missedAttackWeightMinMultiplier;
+        public ForgeConfigSpec.DoubleValue missedAttackWeightMaxMultiplier;
+
         public ForgeConfigSpec.DoubleValue recoveryPerTick;
         public ForgeConfigSpec.DoubleValue recoveryRestMult;
         public ForgeConfigSpec.DoubleValue recoveryClimbMult;
@@ -116,6 +128,7 @@ public class StaminaConfig {
             initGeneral(builder);
             initRecovery(builder);
             initDepletion(builder);
+            initCombat(builder);
             initFatigueAndLimits(builder);
             initBonusStamina(builder);
             initElytra(builder);
@@ -147,13 +160,29 @@ public class StaminaConfig {
             builder.push("Depletion Rates");
             depletionSprint = builder.comment(" Stamina drained per tick while sprinting. Set to 0.0 to disable. Set to negative to gain stamina").defineInRange("depletionSprint", 0.15, -100.0, 100.0);
             depletionJump = builder.comment(" Stamina drained per jump. Set to 0.0 to disable. Set to negative to gain stamina").defineInRange("depletionJump", 0.85, -100.0, 100.0);
-            depletionAttack = builder.comment(" Stamina drained per attack. Set to 0.0 to disable. Set to negative to gain stamina").defineInRange("depletionAttack", 3.45, -100.0, 100.0);
+            depletionAttack = builder.comment(" Base stamina drained per attack. Set to 0.0 to disable. Set to negative to gain stamina").defineInRange("depletionAttack", 3.45, -100.0, 100.0);
             depletionMissedAttack = builder.comment(" Stamina drained when swinging at the air (missing an attack). Set to 0.0 to disable.").defineInRange("depletionMissedAttack", 1.0, 0.0, 100.0);
             depletionBlockBreak = builder.comment(" Stamina drained per block broken. Set to 0.0 to disable. Set to negative to gain stamina").defineInRange("depletionBlockBreak", 1.1, -100.0, 100.0);
             depletionBlockPlace = builder.comment(" Stamina drained per block placed. Set to 0.0 to disable. Set to negative to gain stamina").defineInRange("depletionBlockPlace", 0.7, -100.0, 100.0);
             depletionSwim = builder.comment(" Stamina drained per tick while swimming. Set to 0.0 to disable. Set to negative to gain stamina").defineInRange("depletionSwim", 0.05, -100.0, 100.0);
             depletionClimb = builder.comment(" Stamina drained per tick while climbing. Set to 0.0 to disable. Set to negative to gain stamina").defineInRange("depletionClimb", 0.7, -100.0, 100.0);
-            itemInterruptionCooldown = builder.comment("", " Ticks to disable an item if you run out of stamina while using it.").defineInRange("itemInterruptionCooldown", 120, 0, 1200);
+            itemInterruptionCooldown = builder.comment(" Ticks to disable an item if you run out of stamina while using it.").defineInRange("itemInterruptionCooldown", 120, 0, 1200);
+            builder.pop();
+        }
+
+        private void initCombat(ForgeConfigSpec.Builder builder) {
+            builder.push("Combat");
+            attackCostScalesWithWeight = builder.comment(" If true, the stamina drained per attack is modified by the weapon's weight.").define("attackCostScalesWithWeight", true);
+            attackWeightNormalizer = builder.comment(" The baseline weapon weight that results in exactly a 1.0x stamina cost multiplier. Default 3.0 (Stone Sword)").defineInRange("attackWeightNormalizer", 3.0, 0.1, 1000.0);
+            attackWeightScaleFactor = builder.comment(" How intensely weight affects the attack cost. 1.0 = direct scaling, 0.5 = half impact, 2.0 = double impact.").defineInRange("attackWeightScaleFactor", 1.0, 0.0, 10.0);
+            attackWeightMinMultiplier = builder.comment(" The minimum possible stamina cost multiplier from weight scaling. Prevents light weapons from becoming free.").defineInRange("attackWeightMinMultiplier", 0.4, 0.0, 1.0);
+            attackWeightMaxMultiplier = builder.comment(" The maximum possible stamina cost multiplier from weight scaling. Prevents excessively heavy weapons from draining all stamina instantly.").defineInRange("attackWeightMaxMultiplier", 5.0, 1.0, 100.0);
+
+            missedAttackCostScalesWithWeight = builder.comment("", " If true, the stamina drained per missed attack is modified by the weapon's weight.").define("missedAttackCostScalesWithWeight", true);
+            missedAttackWeightNormalizer = builder.comment(" The baseline weapon weight that results in exactly a 1.0x stamina cost multiplier for missed attacks.").defineInRange("missedAttackWeightNormalizer", 3.0, 0.1, 1000.0);
+            missedAttackWeightScaleFactor = builder.comment(" How intensely weight affects the missed attack cost.").defineInRange("missedAttackWeightScaleFactor", 1.0, 0.0, 10.0);
+            missedAttackWeightMinMultiplier = builder.comment(" The minimum possible stamina cost multiplier for missed attacks.").defineInRange("missedAttackWeightMinMultiplier", 0.4, 0.0, 1.0);
+            missedAttackWeightMaxMultiplier = builder.comment(" The maximum possible stamina cost multiplier for missed attacks.").defineInRange("missedAttackWeightMaxMultiplier", 5.0, 1.0, 100.0);
             builder.pop();
         }
 

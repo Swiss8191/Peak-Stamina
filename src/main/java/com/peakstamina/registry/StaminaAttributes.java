@@ -69,6 +69,12 @@ public class StaminaAttributes {
     public static final RegistryObject<Attribute> MISSED_ATTACK_COST_MULTIPLIER = ATTRIBUTES.register("missed_attack_cost_multiplier",
             () -> new RangedAttribute("attribute.peakstamina.missed_attack_cost_multiplier", 1.0D, 0.0D, 1024.0D).setSyncable(true));
 
+    public static final RegistryObject<Attribute> SHIELD_BLOCK_COST_MULTIPLIER = ATTRIBUTES.register("block_cost_multiplier",
+            () -> new RangedAttribute("attribute.peakstamina.shield_block_cost_multiplier", 1.0D, 0.0D, 1024.0D).setSyncable(true));
+
+    public static final RegistryObject<Attribute> ITEM_COST_MULTIPLIER = ATTRIBUTES.register("use_item_cost_multiplier",
+            () -> new RangedAttribute("attribute.peakstamina.item_cost_multiplier", 1.0D, 0.0D, 1024.0D).setSyncable(true));
+
     public static final RegistryObject<Attribute> BLOCK_BREAK_COST_MULTIPLIER = ATTRIBUTES.register("block_break_cost_multiplier",
             () -> new RangedAttribute("attribute.peakstamina.block_break_cost_multiplier", 1.0D, 0.0D, 1024.0D).setSyncable(true));
 

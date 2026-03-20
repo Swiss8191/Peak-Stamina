@@ -5,12 +5,14 @@ import com.peakstamina.commands.StaminaCommand;
 import com.peakstamina.network.StaminaNetwork;
 import com.peakstamina.registry.StaminaAttributes;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityType;
+
 import com.peakstamina.compat.ParCoolCompat;
 import com.peakstamina.compat.PackedUpCompat;
 import com.peakstamina.compat.ParCoolClientCompat;
 import com.peakstamina.config.ExperimentalConfig;
 import com.peakstamina.config.StaminaConfig;
-import com.peakstamina.config.StaminaLists; 
+import com.peakstamina.config.StaminaLists;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
@@ -91,6 +93,8 @@ public class peakStaminaMod {
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.SPRINT_COST_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.ATTACK_COST_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.MISSED_ATTACK_COST_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.SHIELD_BLOCK_COST_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.ITEM_COST_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.BLOCK_BREAK_COST_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.BLOCK_PLACE_COST_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.SWIM_COST_MULTIPLIER.get());

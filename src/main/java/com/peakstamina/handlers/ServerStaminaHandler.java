@@ -39,6 +39,7 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 
 import java.util.*;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
 @Mod.EventBusSubscriber(modid = peakStaminaMod.MODID)
 public class ServerStaminaHandler {
@@ -1151,20 +1152,38 @@ public class ServerStaminaHandler {
             }
 
             float attackCost = StaminaConfig.COMMON.depletionAttack.get().floatValue();
+
+            if (StaminaConfig.COMMON.attackCostScalesWithWeight.get()) {
+                ItemStack weapon = player.getMainHandItem();
+                double wepWeight = WeightHandler.getItemWeight(weapon, StaminaConfig.COMMON.autoWeightBase.get()) / Math.max(1, weapon.getCount());
+                
+                double normalizer = StaminaConfig.COMMON.attackWeightNormalizer.get();
+                double scaleFactor = StaminaConfig.COMMON.attackWeightScaleFactor.get();
+                double minMult = StaminaConfig.COMMON.attackWeightMinMultiplier.get();
+                double maxMult = StaminaConfig.COMMON.attackWeightMaxMultiplier.get();
+
+                double weightMult = 1.0 + (((wepWeight - normalizer) / normalizer) * scaleFactor);
+                weightMult = Math.max(minMult, Math.min(maxMult, weightMult)); 
+                attackCost *= (float) weightMult;
+            }
+            
             double attackMult = getAttributeValue(player, StaminaAttributes.ATTACK_COST_MULTIPLIER.get(), 1.0);
             double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
+            
             if (attackCost != 0) {
                 if (player.isSprinting()) {
                     player.getPersistentData().putBoolean("peak_stamina_restore_sprint", true);
                 }
 
+                final float finalAttackCost = attackCost;
+
                 player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
                     double finalCost;
-                    if (attackCost > 0) {
+                    if (finalAttackCost > 0) {
                         double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
-                        finalCost = attackCost * usageMult * attackMult;
+                        finalCost = finalAttackCost * usageMult * attackMult;
                     } else {
-                        finalCost = attackCost * actionRecoveryMult;
+                        finalCost = finalAttackCost * actionRecoveryMult;
                     }
 
                     if (finalCost > 0) {
@@ -1180,7 +1199,7 @@ public class ServerStaminaHandler {
                         cap.stamina = cap.maxStamina;
                     }
 
-                    if (attackCost > 0) {
+                    if (finalAttackCost > 0) {
                         cap.staminaRegenDelay = getRecoveryDelay(player);
                     }
 
@@ -1404,11 +1423,12 @@ public class ServerStaminaHandler {
         if (cost != 0) {
             player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
                 double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
+                double useItemMult = getAttributeValue(player, StaminaAttributes.ITEM_COST_MULTIPLIER.get(), 1.0);
                 double finalCost;
 
                 if (cost > 0) {
                     double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
-                    finalCost = cost * usageMult;
+                    finalCost = cost * usageMult * useItemMult;
                 } else {
                     finalCost = cost * actionRecoveryMult;
                 }
@@ -1473,14 +1493,16 @@ public class ServerStaminaHandler {
 
         float damage = event.getBlockedDamage();
         float cost = baseCost + (damage * multiplier);
+        
         if (cost != 0) {
             player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
                 double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
+                double blockMult = getAttributeValue(player, StaminaAttributes.SHIELD_BLOCK_COST_MULTIPLIER.get(), 1.0);
                 double finalCost;
 
                 if (cost > 0) {
                     double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
-                    finalCost = cost * usageMult;
+                    finalCost = cost * usageMult * blockMult;
                 } else {
                     finalCost = cost * actionRecoveryMult;
                 }
@@ -1533,17 +1555,20 @@ public class ServerStaminaHandler {
         if (item == net.minecraft.world.item.Items.FIREWORK_ROCKET && !player.isFallFlying()) {
             return;
         }
+        
         float useCost = getConfiguredItemCost(item, "USE");
         float tickCost = getConfiguredItemCost(item, "TICK");
+        
         if (useCost > 0 || tickCost > 0) {
             player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
                 double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
                 double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
+                double useItemMult = getAttributeValue(player, StaminaAttributes.ITEM_COST_MULTIPLIER.get(), 1.0);
 
                 if (useCost != 0) {
                     double totalCost;
                     if (useCost > 0) {
-                        totalCost = useCost * usageMult;
+                        totalCost = useCost * usageMult * useItemMult;
                     } else {
                         totalCost = useCost * actionRecoveryMult;
                     }
@@ -1572,7 +1597,7 @@ public class ServerStaminaHandler {
                 }
 
                 if (tickCost > 0) {
-                    double totalTickCost = tickCost * usageMult;
+                    double totalTickCost = tickCost * usageMult * useItemMult;
                     float totalAvailable = cap.stamina + cap.bonusStamina;
 
                     if (totalAvailable < totalTickCost) {

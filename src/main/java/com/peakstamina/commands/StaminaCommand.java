@@ -19,36 +19,48 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraftforge.network.PacketDistributor;
+import net.minecraftforge.registries.RegistryObject;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class StaminaCommand {
 
+    // Centralized map for all attribute commands. Add new attributes here ONLY!
+    private static final Map<String, RegistryObject<Attribute>> ATTRIBUTE_MAP = new HashMap<>();
+
+    static {
+        ATTRIBUTE_MAP.put("regen", StaminaAttributes.STAMINA_REGEN);
+        ATTRIBUTE_MAP.put("usage", StaminaAttributes.STAMINA_USAGE);
+        ATTRIBUTE_MAP.put("action_recovery", StaminaAttributes.STAMINA_ACTION_RECOVERY);
+        ATTRIBUTE_MAP.put("regen_delay", StaminaAttributes.REGEN_DELAY_MULTIPLIER);
+        ATTRIBUTE_MAP.put("exhaustion_time", StaminaAttributes.EXHAUSTION_DURATION_MULTIPLIER);
+        ATTRIBUTE_MAP.put("penalty_gain", StaminaAttributes.PENALTY_GAIN_MULTIPLIER);
+        ATTRIBUTE_MAP.put("penalty_decay", StaminaAttributes.PENALTY_DECAY_MULTIPLIER);
+        ATTRIBUTE_MAP.put("penalty_amount", StaminaAttributes.PENALTY_AMOUNT_MULTIPLIER);
+        ATTRIBUTE_MAP.put("weight_limit", StaminaAttributes.WEIGHT_LIMIT);
+        ATTRIBUTE_MAP.put("weight_mult", StaminaAttributes.WEIGHT_CALC_MULTIPLIER);
+        ATTRIBUTE_MAP.put("cost_jump", StaminaAttributes.JUMP_COST_MULTIPLIER);
+        ATTRIBUTE_MAP.put("cost_sprint", StaminaAttributes.SPRINT_COST_MULTIPLIER);
+        ATTRIBUTE_MAP.put("cost_attack", StaminaAttributes.ATTACK_COST_MULTIPLIER);
+        ATTRIBUTE_MAP.put("cost_miss", StaminaAttributes.MISSED_ATTACK_COST_MULTIPLIER);
+        ATTRIBUTE_MAP.put("cost_break", StaminaAttributes.BLOCK_BREAK_COST_MULTIPLIER);
+        ATTRIBUTE_MAP.put("cost_place", StaminaAttributes.BLOCK_PLACE_COST_MULTIPLIER);
+        ATTRIBUTE_MAP.put("cost_swim", StaminaAttributes.SWIM_COST_MULTIPLIER);
+        ATTRIBUTE_MAP.put("cost_climb", StaminaAttributes.CLIMB_COST_MULTIPLIER);
+        ATTRIBUTE_MAP.put("cost_elytra", StaminaAttributes.ELYTRA_COST_MULTIPLIER);
+        ATTRIBUTE_MAP.put("cost_block", StaminaAttributes.SHIELD_BLOCK_COST_MULTIPLIER);
+        ATTRIBUTE_MAP.put("cost_item_use", StaminaAttributes.ITEM_COST_MULTIPLIER);
+        ATTRIBUTE_MAP.put("bonus_capacity", StaminaAttributes.BONUS_STAMINA_CAPACITY);
+        ATTRIBUTE_MAP.put("bonus_decay_rate", StaminaAttributes.BONUS_STAMINA_DECAY_RATE);
+        ATTRIBUTE_MAP.put("bonus_decay_delay", StaminaAttributes.BONUS_STAMINA_DECAY_DELAY);
+        ATTRIBUTE_MAP.put("excess_conversion", StaminaAttributes.EXCESS_CONVERSION_MULTIPLIER);
+    }
+
+    // Automatically generates tab suggestions based on the map keys
     private static final SuggestionProvider<CommandSourceStack> SUGGEST_ATTRIBUTES = (context, builder) -> 
-        SharedSuggestionProvider.suggest(new String[]{
-            "regen", 
-            "action_recovery",
-            "regen_delay",
-            "exhaustion_time",
-            "penalty_gain", 
-            "penalty_decay",
-            "weight_limit",
-            "weight_mult",
-            "usage",
-            "cost_jump", 
-            "cost_sprint", 
-            "cost_attack", 
-            "cost_miss",
-            "cost_break",
-            "cost_place", 
-            "cost_swim", 
-            "cost_climb",
-            "cost_elytra",
-            "bonus_capacity",
-            "bonus_decay_rate",
-            "bonus_decay_delay",
-            "excess_conversion"
-        }, builder);
+        SharedSuggestionProvider.suggest(ATTRIBUTE_MAP.keySet(), builder);
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("stamina")
@@ -129,28 +141,18 @@ public class StaminaCommand {
                             }
                         }
                         
-                        msg.append("§e--- Attributes ---\n");
+                        msg.append("§e--- Core Stats ---\n");
                         msg.append("§7Max (Base): §b").append(getAttr(player, StaminaAttributes.MAX_STAMINA.get())).append("\n");
-                        msg.append("§7Regen Mult: §a").append(getAttr(player, StaminaAttributes.STAMINA_REGEN.get())).append("\n");
-                        msg.append("§7Usage Mult: §c").append(getAttr(player, StaminaAttributes.STAMINA_USAGE.get())).append("\n");
-                        msg.append("§7Action Recovery Mult: §e").append(getAttr(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get())).append("\n");
-                        msg.append("§7Weight Limit Bonus: §f").append(getAttr(player, StaminaAttributes.WEIGHT_LIMIT.get())).append("\n");
-                        
-                        msg.append("§e--- Modifiers ---\n");
-                        msg.append("§7Penalty Amount: §d").append(getAttr(player, StaminaAttributes.PENALTY_AMOUNT_MULTIPLIER.get())).append("\n");
-                        msg.append("§7Penalty Gain: §c").append(getAttr(player, StaminaAttributes.PENALTY_GAIN_MULTIPLIER.get())).append("\n");
-                        msg.append("§7Penalty Decay: §a").append(getAttr(player, StaminaAttributes.PENALTY_DECAY_MULTIPLIER.get())).append("\n");
-                        
-                        msg.append("§e--- RPG Modifiers ---\n");
-                        msg.append("§7Regen Delay Mult: §a").append(getAttr(player, StaminaAttributes.REGEN_DELAY_MULTIPLIER.get())).append("\n");
-                        msg.append("§7Exhaustion Time Mult: §c").append(getAttr(player, StaminaAttributes.EXHAUSTION_DURATION_MULTIPLIER.get())).append("\n");
-                        msg.append("§7Weight Calc Mult: §e").append(getAttr(player, StaminaAttributes.WEIGHT_CALC_MULTIPLIER.get())).append("\n");
 
-                        msg.append("§e--- Bonus Stamina Modifiers ---\n");
-                        msg.append("§7Capacity Mult: §b").append(getAttr(player, StaminaAttributes.BONUS_STAMINA_CAPACITY.get())).append("\n");
-                        msg.append("§7Decay Rate Mult: §c").append(getAttr(player, StaminaAttributes.BONUS_STAMINA_DECAY_RATE.get())).append("\n");
-                        msg.append("§7Decay Delay Mult: §a").append(getAttr(player, StaminaAttributes.BONUS_STAMINA_DECAY_DELAY.get())).append("\n");
-                        msg.append("§7Excess Conversion Mult: §e").append(getAttr(player, StaminaAttributes.EXCESS_CONVERSION_MULTIPLIER.get())).append("\n");
+                        msg.append("§e--- Configured Attributes ---\n");
+                        
+                        // Automatically iterate, sort, and print every attribute in the map
+                        ATTRIBUTE_MAP.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey())
+                            .forEach(entry -> {
+                                msg.append("§7").append(entry.getKey()).append(": §f")
+                                   .append(String.format("%.2f", getAttr(player, entry.getValue().get()))).append("\n");
+                            });
 
                         context.getSource().sendSuccess(() -> Component.literal(msg.toString()), false);
                     });
@@ -167,45 +169,20 @@ public class StaminaCommand {
 
     private static int setAttribute(CommandSourceStack source, String shortName, float value) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        Attribute attr = null;
+        RegistryObject<Attribute> attrObj = ATTRIBUTE_MAP.get(shortName.toLowerCase());
 
-        switch (shortName.toLowerCase()) {
-            case "regen": attr = StaminaAttributes.STAMINA_REGEN.get(); break;
-            case "usage": attr = StaminaAttributes.STAMINA_USAGE.get(); break;
-            case "action_recovery": attr = StaminaAttributes.STAMINA_ACTION_RECOVERY.get(); break;
-            case "penalty_gain": attr = StaminaAttributes.PENALTY_GAIN_MULTIPLIER.get(); break;
-            case "penalty_decay": attr = StaminaAttributes.PENALTY_DECAY_MULTIPLIER.get(); break;
-            case "weight_limit": attr = StaminaAttributes.WEIGHT_LIMIT.get(); break;
-            case "cost_jump": attr = StaminaAttributes.JUMP_COST_MULTIPLIER.get(); break;
-            case "cost_sprint": attr = StaminaAttributes.SPRINT_COST_MULTIPLIER.get(); break;
-            case "cost_attack": attr = StaminaAttributes.ATTACK_COST_MULTIPLIER.get(); break;
-            case "cost_miss": attr = StaminaAttributes.MISSED_ATTACK_COST_MULTIPLIER.get(); break;
-            case "cost_break": attr = StaminaAttributes.BLOCK_BREAK_COST_MULTIPLIER.get(); break;
-            case "cost_place": attr = StaminaAttributes.BLOCK_PLACE_COST_MULTIPLIER.get(); break;
-            case "cost_elytra": attr = StaminaAttributes.ELYTRA_COST_MULTIPLIER.get(); break;
-            case "cost_swim": attr = StaminaAttributes.SWIM_COST_MULTIPLIER.get(); break;
-            case "cost_climb": attr = StaminaAttributes.CLIMB_COST_MULTIPLIER.get(); break;
-            case "regen_delay": attr = StaminaAttributes.REGEN_DELAY_MULTIPLIER.get(); break;
-            case "exhaustion_time": attr = StaminaAttributes.EXHAUSTION_DURATION_MULTIPLIER.get(); break;
-            case "weight_mult": attr = StaminaAttributes.WEIGHT_CALC_MULTIPLIER.get(); break;
-            case "bonus_capacity": attr = StaminaAttributes.BONUS_STAMINA_CAPACITY.get(); break;
-            case "bonus_decay_rate": attr = StaminaAttributes.BONUS_STAMINA_DECAY_RATE.get(); break;
-            case "bonus_decay_delay": attr = StaminaAttributes.BONUS_STAMINA_DECAY_DELAY.get(); break;
-            case "excess_conversion": attr = StaminaAttributes.EXCESS_CONVERSION_MULTIPLIER.get(); break;
-        }
-
-        if (attr == null) {
+        if (attrObj == null) {
             source.sendFailure(Component.literal("§cUnknown attribute: " + shortName));
             return 0;
         }
 
-        AttributeInstance inst = player.getAttribute(attr);
+        AttributeInstance inst = player.getAttribute(attrObj.get());
         if (inst != null) {
             inst.setBaseValue(value);
             source.sendSuccess(() -> Component.literal("§aSet §e" + shortName + "§a to §f" + value), true);
             return 1;
         } else {
-            source.sendFailure(Component.literal("§cAttribute instance not found on player."));
+            source.sendFailure(Component.literal("§cAttribute instance not found on player. Did you register it properly?"));
             return 0;
         }
     }
