@@ -1,7 +1,7 @@
 
 # Peak Stamina
 
-Replaces vanilla sprinting mechanics with a resource management system based on fatigue and hunger. Ships with built-in compatibility for Tough as Nails and Cold Sweat ParCool support is also included. For additional custom penalties or integrations, refer to the Advanced Features section below.
+Replaces vanilla sprinting mechanics with a resource management system based on fatigue and hunger. comes with built in compatibility for Tough as Nails, Cold Sweat and ParCool. For additional custom penalties or integrations, refer to the Advanced Features section below.
 
 For a more indepth and better formatted guide visit the [wiki](https://github.com/Swiss8191/Peak-Stamina/wiki/Peak-Stamina-Home)! Or you can scroll down and read the guide there.
 
@@ -26,7 +26,8 @@ For a more indepth and better formatted guide visit the [wiki](https://github.co
 -   **`config/peak_stamina/common.toml`**: All core gameplay values (costs, recovery, penalties).
 -   **`config/peak_stamina/lists.toml`**: Weight system, item costs, consumables, universal penalties/buffs, and exhaustion profiles.
 -   **`config/peak_stamina/client.toml`**: HUD and visual settings.
-
+  
+-  **Note**: With the newest update (v1.8.15+) you do not need to restart your game or server to load in new values inside the config (with the exception of a few configs that need you to leave and rejoin the server/world). The new value will be adjusted automatically in-game when you save the config file.
 ----------
 
 ## Base Settings
@@ -73,6 +74,7 @@ For a more indepth and better formatted guide visit the [wiki](https://github.co
 -   `penaltyDecayRate` _(Default: `0.05`)_: Penalty recovered per tick when conditions improve.
 
 ----------
+## Intermediate Features
 
 ### Sleep Mechanics
 
@@ -85,7 +87,33 @@ For a more indepth and better formatted guide visit the [wiki](https://github.co
 
 ----------
 
-## Intermediate Features
+### Combat & Dynamic Weapon Weight
+
+**The Weight Scaling Formula:**
+
+When weight scaling is enabled, the stamina drained by an attack is multiplied by a calculated weight factor based on the weapon you are holding.
+
+`Multiplier = 1.0 + (((WeaponWeight - Normalizer) / Normalizer) * ScaleFactor)`
+
+**Hit Attack Settings:**
+-   `depletionAttack` (Default: `3.45`): Base stamina drained per successful attack.
+-   `attackCostScalesWithWeight` (Default: `false`): Enables or disables the dynamic weight formula for successful hits.
+-   `attackWeightNormalizer` (Default: `3.0`): The baseline weapon weight that results in exactly a 1.0x stamina cost multiplier.
+-   `attackWeightScaleFactor` (Default: `1.0`): How intensely weight affects the attack cost.
+-   `attackWeightMinMultiplier` (Default: `0.4`): The absolute minimum stamina cost multiplier.
+-   `attackWeightMaxMultiplier` (Default: `5.0`): The absolute maximum stamina cost multiplier.
+    
+
+**Missed Attack Settings:**
+-   `depletionMissedAttack` (Default: `1.0`): Base stamina drained when swinging at the air.
+-   `missedAttackCostScalesWithWeight` (Default: `false`): Enables or disables the dynamic weight formula for missed attacks.
+-   `missedAttackWeightNormalizer` (Default: `3.0`): The baseline weapon weight for a 1.0x multiplier on missed attacks.
+-   `missedAttackWeightScaleFactor` (Default: `1.0`): How intensely weight affects the missed attack cost.
+-   `missedAttackWeightMinMultiplier` (Default: `0.4`): The minimum possible stamina cost multiplier for missed attacks.
+-   `missedAttackWeightMaxMultiplier` (Default: `5.0`): The maximum possible stamina cost multiplier for missed attacks.
+    
+
+----------
 
 ### Elytra Mechanics
 
