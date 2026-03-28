@@ -46,13 +46,10 @@ public class ClientStaminaEvents {
     private static int visibleLingerTimer = 0;
 
     private static final Map<Integer, Float> smoothedPenalties = new HashMap<>();
-
     private static boolean isCacheValid = false;
     private static final List<MobEffect> cachedInfiniteEffects = new ArrayList<>();
     private static final List<Integer> cachedPenaltyColors = new ArrayList<>();
     private static final List<String> cachedPenaltyIcons = new ArrayList<>();
-
-    private static final ResourceLocation STAMINA_ICONS = new ResourceLocation(peakStaminaMod.MODID, "textures/gui/stamina_icons.png");
 
     @SubscribeEvent
     public static void onRenderGuiOverlayPost(RenderGuiOverlayEvent.Post event) {
@@ -206,7 +203,6 @@ public class ClientStaminaEvents {
 
             boolean isActive = isRecentlyUsed || isBelowThreshold || hasPenalties || hasBonus;
 
-            // Handle linger timer
             if (isActive) {
                 visibleLingerTimer = StaminaConfig.CLIENT.autoHudLingerTime.get();
             } else if (visibleLingerTimer > 0) {
@@ -217,21 +213,18 @@ public class ClientStaminaEvents {
             boolean shouldShow = !StaminaConfig.CLIENT.autoHudEnable.get() || isActive;
             float targetAnim = shouldShow ? 1.0f : 0.0f;
             
-            // Interpolate Fade and Slide independently
             float fadeSpeed = shouldShow ? StaminaConfig.CLIENT.autoHudFadeInSpeed.get().floatValue() : StaminaConfig.CLIENT.autoHudFadeOutSpeed.get().floatValue();
             float slideSpeed = shouldShow ? StaminaConfig.CLIENT.autoHudSlideInSpeed.get().floatValue() : StaminaConfig.CLIENT.autoHudSlideOutSpeed.get().floatValue();
 
             currentFadeProgress += (targetAnim - currentFadeProgress) * fadeSpeed;
             currentSlideProgress += (targetAnim - currentSlideProgress) * slideSpeed;
 
-            // Stop rendering completely if fully hidden
             if (currentFadeProgress < 0.01f && currentSlideProgress < 0.01f && !shouldShow) {
                 currentFadeProgress = 0.0f;
                 currentSlideProgress = 0.0f;
                 return; 
             }
 
-            // Apply Mode Math
             StaminaConfig.AutoHudMode mode = StaminaConfig.CLIENT.autoHudMode.get();
             float renderAlpha = (mode == StaminaConfig.AutoHudMode.FADE || mode == StaminaConfig.AutoHudMode.BOTH) ? currentFadeProgress : 1.0f;
             
@@ -241,7 +234,6 @@ public class ClientStaminaEvents {
                 float easedSlide = applyEasing(currentSlideProgress, StaminaConfig.CLIENT.autoHudEasing.get());
                 int maxDist = StaminaConfig.CLIENT.autoHudSlideDistance.get();
                 int offsetAmount = (int)((1.0f - easedSlide) * maxDist);
-                
                 switch (StaminaConfig.CLIENT.autoHudSlideDir.get()) {
                     case DOWN: slideY = offsetAmount; break;
                     case UP: slideY = -offsetAmount; break;
@@ -250,12 +242,28 @@ public class ClientStaminaEvents {
                 }
             }
 
-            int sBarW = StaminaConfig.CLIENT.barWidth.get();
-            int sBarH = StaminaConfig.CLIENT.barHeight.get();
-            int offsetX = StaminaConfig.CLIENT.barXOffset.get();
+            boolean isIconMode = false;
+            try {
+                isIconMode = StaminaConfig.CLIENT.hudStyle.get().name().equalsIgnoreCase("ICON");
+            } catch (Exception e) {
+                isIconMode = false;
+            }
+
+            int sBarW = isIconMode ? 81 : StaminaConfig.CLIENT.barWidth.get();
+            int sBarH = isIconMode ? 9 : StaminaConfig.CLIENT.barHeight.get();
+            
+            int offsetX = isIconMode ? StaminaConfig.CLIENT.iconXOffset.get() : StaminaConfig.CLIENT.barXOffset.get();
+            int offsetY = isIconMode ? StaminaConfig.CLIENT.iconYOffset.get() : StaminaConfig.CLIENT.barYOffset.get();
+            
             int sBarX = (width / 2) - (sBarW / 2) + offsetX + slideX;
-            int offsetY = StaminaConfig.CLIENT.barYOffset.get();
-            int sBarY = height - offsetY + slideY;
+            int sBarY = height - 24 - offsetY + slideY;
+
+            if (isIconMode) {
+                sBarX = (width / 2) - 90 + offsetX + slideX;
+                sBarY = height - 49 - offsetY + slideY;
+            }
+
+            int iconY = isIconMode ? sBarY - 12 : sBarY;
 
             float compressionRatio = 1.0f;
             if (totalPenaltySum > baseMax && baseMax > 0) {
@@ -269,53 +277,92 @@ public class ClientStaminaEvents {
             int weightCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorPenaltyWeight.get(), renderAlpha);
             int sepCol = applyAlpha(0xFF000000, renderAlpha);
 
-            gfx.fill(sBarX - 1, sBarY - 1, sBarX + sBarW + 1, sBarY + sBarH + 1, sepCol);
-            gfx.fill(sBarX, sBarY, sBarX + sBarW, sBarY + sBarH, bgCol);
+            if (isIconMode) {
+                for (int i = 0; i < 10; i++) {
+                    drawLightningOutline(gfx, sBarX + i * 8, sBarY, applyAlpha(0xFF000000, renderAlpha));
+                }
+            } else {
+                gfx.fill(sBarX - 1, sBarY - 1, sBarX + sBarW + 1, sBarY + sBarH + 1, sepCol);
+                gfx.fill(sBarX, sBarY, sBarX + sBarW, sBarY + sBarH, bgCol);
+            }
 
             float pxScale = sBarW / baseMax;
             float effectivePenaltyScale = pxScale * compressionRatio;
             int currentPenaltyRightEdge = sBarW;
 
+            // Fatigue
             int fatiguePx = (int) (displayedPenalty * effectivePenaltyScale);
             if (fatiguePx > 0) {
                 if (fatiguePx > currentPenaltyRightEdge) fatiguePx = currentPenaltyRightEdge;
                 int startX = currentPenaltyRightEdge - fatiguePx;
-                drawStripesHUD(gfx, sBarX + startX, sBarY, fatiguePx, sBarH, stripeCol, renderAlpha);
-                if (showIcons) drawIcon(gfx, sBarX + startX, sBarY, fatiguePx, sBarH, ICON_FATIGUE, stripeCol, renderAlpha);
-                gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
+                
+                if (isIconMode) {
+                    gfx.enableScissor(sBarX + startX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH);
+                    for(int i=0; i<10; i++) drawLightningStripes(gfx, sBarX + i*8, sBarY, stripeCol);
+                    gfx.disableScissor();
+                } else {
+                    drawStripesHUD(gfx, sBarX + startX, sBarY, fatiguePx, sBarH, stripeCol, renderAlpha);
+                    gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
+                }
+                if (showIcons) drawIcon(gfx, sBarX + startX, iconY, fatiguePx, sBarH, ICON_FATIGUE, stripeCol, renderAlpha);
                 currentPenaltyRightEdge -= fatiguePx;
             }
 
+            // Hunger
             int hungerPx = (int) (displayedHunger * effectivePenaltyScale);
             if (hungerPx > 0 && currentPenaltyRightEdge > 0) {
                 if (hungerPx > currentPenaltyRightEdge) hungerPx = currentPenaltyRightEdge;
                 int startX = currentPenaltyRightEdge - hungerPx;
-                drawStripesHUD(gfx, sBarX + startX, sBarY, hungerPx, sBarH, energyCol, renderAlpha);
-                if (showIcons) drawIcon(gfx, sBarX + startX, sBarY, hungerPx, sBarH, ICON_HUNGER, energyCol, renderAlpha);
-                gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
+                
+                if (isIconMode) {
+                    gfx.enableScissor(sBarX + startX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH);
+                    for(int i=0; i<10; i++) drawLightningStripes(gfx, sBarX + i*8, sBarY, energyCol);
+                    gfx.disableScissor();
+                } else {
+                    drawStripesHUD(gfx, sBarX + startX, sBarY, hungerPx, sBarH, energyCol, renderAlpha);
+                    gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
+                }
+                if (showIcons) drawIcon(gfx, sBarX + startX, iconY, hungerPx, sBarH, ICON_HUNGER, energyCol, renderAlpha);
                 currentPenaltyRightEdge -= hungerPx;
             }
 
+            // Poison
             int poisonPx = (int) (displayedPoison * effectivePenaltyScale);
             if (poisonPx > 0 && currentPenaltyRightEdge > 0) {
                 if (poisonPx > currentPenaltyRightEdge) poisonPx = currentPenaltyRightEdge;
                 int startX = currentPenaltyRightEdge - poisonPx;
-                drawStripesHUD(gfx, sBarX + startX, sBarY, poisonPx, sBarH, poisonCol, renderAlpha);
-                if (showIcons) drawIcon(gfx, sBarX + startX, sBarY, poisonPx, sBarH, ICON_POISON, poisonCol, renderAlpha);
-                gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
+                
+                if (isIconMode) {
+                    gfx.enableScissor(sBarX + startX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH);
+                    for(int i=0; i<10; i++) drawLightningStripes(gfx, sBarX + i*8, sBarY, poisonCol);
+                    gfx.disableScissor();
+                } else {
+                    drawStripesHUD(gfx, sBarX + startX, sBarY, poisonPx, sBarH, poisonCol, renderAlpha);
+                    gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
+                }
+                if (showIcons) drawIcon(gfx, sBarX + startX, iconY, poisonPx, sBarH, ICON_POISON, poisonCol, renderAlpha);
                 currentPenaltyRightEdge -= poisonPx;
             }
             
+            // Weight
             int weightPx = (int) (displayedWeight * effectivePenaltyScale);
             if (weightPx > 0 && currentPenaltyRightEdge > 0) {
                 if (weightPx > currentPenaltyRightEdge) weightPx = currentPenaltyRightEdge;
                 int startX = currentPenaltyRightEdge - weightPx;
-                drawStripesHUD(gfx, sBarX + startX, sBarY, weightPx, sBarH, weightCol, renderAlpha);
-                if (showIcons) drawIcon(gfx, sBarX + startX, sBarY, weightPx, sBarH, ICON_WEIGHT, weightCol, renderAlpha);
-                gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
+                
+                if (isIconMode) {
+                    gfx.enableScissor(sBarX + startX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH);
+                    for(int i=0; i<10; i++) drawLightningStripes(gfx, sBarX + i*8, sBarY, weightCol);
+                    gfx.disableScissor();
+                } else {
+                    drawStripesHUD(gfx, sBarX + startX, sBarY, weightPx, sBarH, weightCol, renderAlpha);
+                    gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
+                }
+                if (showIcons) drawIcon(gfx, sBarX + startX, iconY, weightPx, sBarH, ICON_WEIGHT, weightCol, renderAlpha);
                 currentPenaltyRightEdge -= weightPx;
             }
 
+            // Universal Config Penalties
             if (cap.penaltyValues != null) {
                 for (int i = 0; i < cap.penaltyValues.length; i++) {
                     if (i >= cachedPenaltyColors.size()) break;
@@ -326,12 +373,19 @@ public class ClientStaminaEvents {
                         if (pPx > currentPenaltyRightEdge) pPx = currentPenaltyRightEdge;
                         int startX = currentPenaltyRightEdge - pPx;
                         int customCol = applyAlpha(0xFF000000 | color, renderAlpha);
-                        drawStripesHUD(gfx, sBarX + startX, sBarY, pPx, sBarH, customCol, renderAlpha);
+                        if (isIconMode) {
+                            gfx.enableScissor(sBarX + startX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH);
+                            for(int idx=0; idx<10; idx++) drawLightningStripes(gfx, sBarX + idx*8, sBarY, customCol);
+                            gfx.disableScissor();
+                        } else {
+                            drawStripesHUD(gfx, sBarX + startX, sBarY, pPx, sBarH, customCol, renderAlpha);
+                            gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
+                        }
+                        
                         if (showIcons && i < cachedPenaltyIcons.size()) {
                             String icon = cachedPenaltyIcons.get(i);
-                            if (icon != null) drawIcon(gfx, sBarX + startX, sBarY, pPx, sBarH, icon, customCol, renderAlpha);
+                            if (icon != null) drawIcon(gfx, sBarX + startX, iconY, pPx, sBarH, icon, customCol, renderAlpha);
                         }
-                        gfx.fill(sBarX + startX, sBarY, sBarX + startX + 1, sBarY + sBarH, sepCol);
                         currentPenaltyRightEdge -= pPx;
                     }
                 }
@@ -339,17 +393,30 @@ public class ClientStaminaEvents {
             
             int colorTop;
             int colorBottom;
-            int safeCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorSafe.get(), renderAlpha);
-            int critCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorCritical.get(), renderAlpha);
-            int tirelessCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorTireless.get(), renderAlpha);
             if (hasInfiniteStamina(mc.player)) {
-                colorBottom = tirelessCol;
+                colorBottom = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorTireless.get(), renderAlpha);
                 colorTop = applyAlpha((0xFF000000 | StaminaConfig.CLIENT.colorTireless.get()) + 0x002222, renderAlpha);
             } else if (displayedStamina <= (baseMax * StaminaConfig.COMMON.fatigueThreshold.get())) {
-                colorBottom = critCol;
-                colorTop = applyAlpha((0xFF000000 | StaminaConfig.CLIENT.colorCritical.get()) + 0x222222, renderAlpha);
+                int baseCrit = StaminaConfig.CLIENT.colorCritical.get();
+                
+                int r = (baseCrit >> 16) & 0xFF;
+                int g = (baseCrit >> 8) & 0xFF;
+                int b = baseCrit & 0xFF;
+
+                if (isIconMode) {
+
+                    int rTop = (int)(r * 0.24f);
+                    int gTop = (int)(g * 0.24f);
+                    int bTop = (int)(b * 0.24f);
+                    
+                    colorBottom = applyAlpha(0xFF000000 | baseCrit, renderAlpha);
+                    colorTop = applyAlpha(0xFF000000 | (rTop << 16) | (gTop << 8) | bTop, renderAlpha);
+                } else {
+                    colorBottom = applyAlpha(0xFF000000 | baseCrit, renderAlpha);
+                    colorTop = applyAlpha((0xFF000000 | baseCrit) + 0x222222, renderAlpha);
+                }
             } else {
-                colorBottom = safeCol;
+                colorBottom = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorSafe.get(), renderAlpha);
                 colorTop = applyAlpha((0xFF000000 | StaminaConfig.CLIENT.colorSafe.get()) + 0x222222, renderAlpha);
             }
 
@@ -357,9 +424,15 @@ public class ClientStaminaEvents {
             int renderNormalW = Math.min(normalW, currentPenaltyRightEdge);
 
             if (renderNormalW > 0) {
-                gfx.fillGradient(sBarX, sBarY, sBarX + renderNormalW, sBarY + sBarH, colorTop, colorBottom);
-                if (renderNormalW < currentPenaltyRightEdge) {
-                    gfx.fill(sBarX + renderNormalW, sBarY, sBarX + renderNormalW + 1, sBarY + sBarH, sepCol);
+                if (isIconMode) {
+                    gfx.enableScissor(sBarX, sBarY, sBarX + renderNormalW, sBarY + sBarH);
+                    for(int i=0; i<10; i++) drawLightningBaseGradient(gfx, sBarX + i*8, sBarY, colorTop, colorBottom);
+                    gfx.disableScissor();
+                } else {
+                    gfx.fillGradient(sBarX, sBarY, sBarX + renderNormalW, sBarY + sBarH, colorTop, colorBottom);
+                    if (renderNormalW < currentPenaltyRightEdge) {
+                        gfx.fill(sBarX + renderNormalW, sBarY, sBarX + renderNormalW + 1, sBarY + sBarH, sepCol);
+                    }
                 }
             }
 
@@ -376,7 +449,8 @@ public class ClientStaminaEvents {
                 int bBotRGB = StaminaConfig.CLIENT.colorBonusBottom.get();
                 int hRGB = StaminaConfig.CLIENT.colorBonusHighlight.get();
                 int hAlpha = (int) (StaminaConfig.CLIENT.bonusHighlightAlpha.get() * renderAlpha);
-                
+                int sheenCol = (hAlpha << 24) | hRGB;
+
                 if (fullBars > 0) {
                     int underTier = fullBars - 1;
                     float uFactor = 1.0f - ((underTier % 3) * 0.35f); 
@@ -384,13 +458,16 @@ public class ClientStaminaEvents {
                     int uBot = shadeColor(bBotRGB, uFactor);
                     int underTopCol = applyAlpha(0xFF000000 | uTop, renderAlpha);
                     int underBotCol = applyAlpha(0xFF000000 | uBot, renderAlpha);
-                    gfx.fillGradient(sBarX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH, underTopCol, underBotCol);
                     
-                    int sheenCol = (hAlpha << 24) | hRGB;
-                    if (sBarH > 2) {
-                        gfx.fill(sBarX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + 1, sheenCol);
+                    if (isIconMode) {
+                        gfx.enableScissor(sBarX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH);
+                        for(int i=0; i<10; i++) drawLightningBaseGradient(gfx, sBarX + i*8, sBarY, underTopCol, underBotCol);
+                        for(int i=0; i<10; i++) drawLightningSheen(gfx, sBarX + i*8, sBarY, sheenCol);
+                        gfx.disableScissor();
                     } else {
-                        gfx.fill(sBarX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH, sheenCol);
+                        gfx.fillGradient(sBarX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH, underTopCol, underBotCol);
+                        if (sBarH > 2) gfx.fill(sBarX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + 1, sheenCol);
+                        else gfx.fill(sBarX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH, sheenCol);
                     }
                 }
 
@@ -401,17 +478,27 @@ public class ClientStaminaEvents {
                     int oBot = shadeColor(bBotRGB, oFactor);
                     int overTopCol = applyAlpha(0xFF000000 | oTop, renderAlpha);
                     int overBotCol = applyAlpha(0xFF000000 | oBot, renderAlpha);
-                    gfx.fillGradient(sBarX, sBarY, sBarX + remainderPx, sBarY + sBarH, overTopCol, overBotCol);
                     
-                    int sheenCol = (hAlpha << 24) | hRGB;
-                    if (sBarH > 2) {
-                        gfx.fill(sBarX, sBarY, sBarX + remainderPx, sBarY + 1, sheenCol);
-                    } else {
-                        gfx.fill(sBarX, sBarY, sBarX + remainderPx, sBarY + sBarH, sheenCol);
-                    }
+                    if (isIconMode) {
+                        gfx.enableScissor(sBarX, sBarY, sBarX + remainderPx, sBarY + sBarH);
+                        for(int i=0; i<10; i++) drawLightningBaseGradient(gfx, sBarX + i*8, sBarY, overTopCol, overBotCol);
+                        for(int i=0; i<10; i++) drawLightningSheen(gfx, sBarX + i*8, sBarY, sheenCol);
+                        gfx.disableScissor();
 
-                    if (remainderPx < currentPenaltyRightEdge) {
-                         gfx.fill(sBarX + remainderPx, sBarY, sBarX + remainderPx + 1, sBarY + sBarH, applyAlpha(0xFFFFFFFF, renderAlpha));
+                        if (remainderPx < currentPenaltyRightEdge) {
+                             gfx.enableScissor(sBarX + remainderPx, sBarY, sBarX + remainderPx + 1, sBarY + sBarH);
+                             int sepColor = applyAlpha(0xCCFFFFFF, renderAlpha);
+                             for(int i=0; i<10; i++) drawLightningBaseGradient(gfx, sBarX + i*8, sBarY, sepColor, sepColor);
+                             gfx.disableScissor();
+                        }
+                    } else {
+                        gfx.fillGradient(sBarX, sBarY, sBarX + remainderPx, sBarY + sBarH, overTopCol, overBotCol);
+                        if (sBarH > 2) gfx.fill(sBarX, sBarY, sBarX + remainderPx, sBarY + 1, sheenCol);
+                        else gfx.fill(sBarX, sBarY, sBarX + remainderPx, sBarY + sBarH, sheenCol);
+
+                        if (remainderPx < currentPenaltyRightEdge) {
+                             gfx.fill(sBarX + remainderPx, sBarY, sBarX + remainderPx + 1, sBarY + sBarH, applyAlpha(0xFFFFFFFF, renderAlpha));
+                        }
                     }
                 }
 
@@ -432,39 +519,34 @@ public class ClientStaminaEvents {
 
             double regenVal = 1.0;
             AttributeInstance regenAttr = mc.player.getAttribute(StaminaAttributes.STAMINA_REGEN.get());
-            if (regenAttr != null) {
-                regenVal = regenAttr.getValue();
-            }
+            if (regenAttr != null) regenVal = regenAttr.getValue();
 
             net.minecraft.network.chat.MutableComponent regenComp = null;
             int regenColor = 0xFFFFFFFF;
-            if (regenVal >= 1.5) {
-                regenComp = net.minecraft.network.chat.Component.literal(">>>");
-                regenColor = 0xFF00FF00;
-            } else if (regenVal >= 1.25) {
-                regenComp = net.minecraft.network.chat.Component.literal(">>");
-                regenColor = 0xFF55FF55;
-            } else if (regenVal > 1.01) {
-                regenComp = net.minecraft.network.chat.Component.literal(">");
-                regenColor = 0xFFAAFF55;
-            } else if (regenVal <= 0.5) {
-                regenComp = net.minecraft.network.chat.Component.literal("<<<");
-                regenColor = 0xFFFF0000;
-            } else if (regenVal <= 0.75) {
-                regenComp = net.minecraft.network.chat.Component.literal("<<");
-                regenColor = 0xFFFF5555;
-            } else if (regenVal < 0.99) {
-                regenComp = net.minecraft.network.chat.Component.literal("<");
-                regenColor = 0xFFFF9955;
-            }
+            if (regenVal >= 1.5) { regenComp = net.minecraft.network.chat.Component.literal(">>>"); regenColor = 0xFF00FF00; } 
+            else if (regenVal >= 1.25) { regenComp = net.minecraft.network.chat.Component.literal(">>"); regenColor = 0xFF55FF55; } 
+            else if (regenVal > 1.01) { regenComp = net.minecraft.network.chat.Component.literal(">"); regenColor = 0xFFAAFF55; } 
+            else if (regenVal <= 0.5) { regenComp = net.minecraft.network.chat.Component.literal("<<<"); regenColor = 0xFFFF0000; } 
+            else if (regenVal <= 0.75) { regenComp = net.minecraft.network.chat.Component.literal("<<"); regenColor = 0xFFFF5555; } 
+            else if (regenVal < 0.99) { regenComp = net.minecraft.network.chat.Component.literal("<"); regenColor = 0xFFFF9955; }
 
             if (regenComp != null && renderNormalW > 2) {
                 regenComp.withStyle(net.minecraft.ChatFormatting.BOLD);
                 float scale = 0.5f;
                 int textWidth = mc.font.width(regenComp);
-                int targetX = sBarX + renderNormalW - (int) (textWidth * scale) - 2;
+                
+                int targetX;
+                int targetY;
+                
+                if (isIconMode) {
+                    targetX = sBarX + renderNormalW - (int) (textWidth * scale) - 2; 
+                    targetY = iconY + 5; 
+                } else {
+                    targetX = sBarX + renderNormalW - (int) (textWidth * scale) - 2;
+                    targetY = sBarY + (sBarH / 2) - (int) (4 * scale);
+                }
+
                 if (targetX >= sBarX) {
-                    int targetY = sBarY + (sBarH / 2) - (int) (4 * scale);
                     gfx.pose().pushPose();
                     gfx.pose().translate(targetX, targetY, 0);
                     gfx.pose().scale(scale, scale, 1.0f);
@@ -473,6 +555,82 @@ public class ClientStaminaEvents {
                 }
             }
         });
+    }
+
+    private static final int[][] LIGHTNING_SHAPE = {
+        {3, 5}, // row 0
+        {2, 4}, 
+        {1, 3}, 
+        {0, 5}, 
+        {3, 5}, 
+        {2, 4}, 
+        {1, 3}, 
+        {0, 2}, // row 7
+    };
+
+    private static void drawLightningBaseGradient(GuiGraphics gfx, int x, int y, int colorTop, int colorBottom) {
+    for (int r = 0; r < LIGHTNING_SHAPE.length; r++) {
+        int startX = LIGHTNING_SHAPE[r][0];
+        int endX = LIGHTNING_SHAPE[r][1];
+
+        float ratioStart = (float) r / (LIGHTNING_SHAPE.length);
+        float ratioEnd = (float) (r + 1) / (LIGHTNING_SHAPE.length);
+
+        int rowColorTop = interpolateColor(colorTop, colorBottom, ratioStart);
+        int rowColorBottom = interpolateColor(colorTop, colorBottom, ratioEnd);
+
+        gfx.fillGradient(x + startX, y + r, x + endX + 1, y + r + 1, rowColorTop, rowColorBottom);
+    }
+}
+
+
+    private static void drawLightningStripes(GuiGraphics gfx, int x, int y, int color) {
+        for (int r = 0; r < LIGHTNING_SHAPE.length; r++) {
+            int startX = LIGHTNING_SHAPE[r][0];
+            int endX = LIGHTNING_SHAPE[r][1];
+            for (int c = startX; c <= endX; c++) {
+                if ((r + c) % 4 < 2) {
+                    gfx.fill(x + c, y + r, x + c + 1, y + r + 1, color);
+                }
+            }
+        }
+    }
+
+    private static void drawLightningOutline(GuiGraphics gfx, int x, int y, int color) {
+        for(int dy=-1; dy<=1; dy++) {
+            for(int dx=-1; dx<=1; dx++) {
+                if (dx==0 && dy==0) continue;
+                for (int r = 0; r < LIGHTNING_SHAPE.length; r++) {
+                    int startX = LIGHTNING_SHAPE[r][0];
+                    int endX = LIGHTNING_SHAPE[r][1];
+                    gfx.fill(x + startX + dx, y + r + dy, x + endX + 1 + dx, y + r + dy + 1, color);
+                }
+            }
+        }
+    }
+
+    private static void drawLightningSheen(GuiGraphics gfx, int x, int y, int color) {
+        for (int r = 0; r < Math.min(2, LIGHTNING_SHAPE.length); r++) {
+            int startX = LIGHTNING_SHAPE[r][0];
+            int endX = LIGHTNING_SHAPE[r][1];
+            gfx.fill(x + startX, y + r, x + endX + 1, y + r + 1, color);
+        }
+    }
+
+    private static int interpolateColor(int color1, int color2, float factor) {
+        int a1 = (color1 >> 24) & 0xFF;
+        int r1 = (color1 >> 16) & 0xFF; int g1 = (color1 >> 8) & 0xFF;
+        int b1 = color1 & 0xFF;
+        int a2 = (color2 >> 24) & 0xFF;
+        int r2 = (color2 >> 16) & 0xFF; int g2 = (color2 >> 8) & 0xFF;
+        int b2 = color2 & 0xFF;
+
+        int a = (int) (a1 + (a2 - a1) * factor);
+        int r = (int) (r1 + (r2 - r1) * factor);
+        int g = (int) (g1 + (g2 - g1) * factor);
+        int b = (int) (b1 + (b2 - b1) * factor);
+
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
     
     private static void drawIcon(GuiGraphics gfx, int x, int y, int w, int h, String text, int color, float alpha) {
@@ -530,8 +688,8 @@ public class ClientStaminaEvents {
         }
         gfx.enableScissor(x, y, x + w, y + h);
         RenderSystem.enableBlend();
-        int bandWidth = 2;
-        int gap = 2;
+        int bandWidth = 3;
+        int gap = 3;
         int totalHeight = h + w + 20;
         int r = (colorRGB >> 16) & 0xFF;
         int g = (colorRGB >> 8) & 0xFF;
@@ -553,5 +711,12 @@ public class ClientStaminaEvents {
         tesselator.end();
         RenderSystem.disableBlend();
         gfx.disableScissor();
+    }
+
+    private static int adjustBrightness(int color, float factor) {
+        int r = Math.min(255, (int)(((color >> 16) & 0xFF) * factor));
+        int g = Math.min(255, (int)(((color >> 8) & 0xFF) * factor));
+        int b = Math.min(255, (int)((color & 0xFF) * factor));
+        return (r << 16) | (g << 8) | b;
     }
 }

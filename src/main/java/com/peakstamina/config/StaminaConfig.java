@@ -289,8 +289,17 @@ public class StaminaConfig {
 
     public static class Client {
 
+        public enum HudStyle {
+            BAR,
+            ICON
+        }
+
+        public final ForgeConfigSpec.EnumValue<HudStyle> hudStyle;
+
         public final ForgeConfigSpec.IntValue barXOffset;
         public final ForgeConfigSpec.IntValue barYOffset;
+        public final ForgeConfigSpec.IntValue iconXOffset;
+        public final ForgeConfigSpec.IntValue iconYOffset;  
         public final ForgeConfigSpec.IntValue barWidth;
         public final ForgeConfigSpec.IntValue barHeight;
         public final ForgeConfigSpec.IntValue colorBackground;
@@ -322,10 +331,24 @@ public class StaminaConfig {
 
         public Client(ForgeConfigSpec.Builder builder) {
             builder.push("HUD Layout");
-            barXOffset = builder.comment(" Horizontal offset from center").defineInRange("barXOffset", 0, -1000, 1000);
-            barYOffset = builder.comment(" Vertical offset from bottom").defineInRange("barYOffset", 24, 0, 1000);
-            barWidth = builder.comment(" Width of the bar in pixels").defineInRange("barWidth", 180, 1, 1000);
-            barHeight = builder.comment(" Height of the bar in pixels").defineInRange("barHeight", 2, 1, 100);
+            hudStyle = builder.comment(" The style of the HUD. BAR is horizontal, ICON is vertical.").defineEnum("hudStyle", HudStyle.BAR);
+            barXOffset = builder
+                    .comment("X offset for the Stamina HUD in BAR mode.")
+                    .defineInRange("barXOffset", 0, -5000, 5000);
+                    
+            barYOffset = builder
+                    .comment("Y offset for the Stamina HUD in BAR mode.")
+                    .defineInRange("barYOffset", 0, -5000, 5000);
+
+            iconXOffset = builder
+                    .comment("X offset for the Stamina HUD in ICON mode.")
+                    .defineInRange("iconXOffset", 0, -5000, 5000);
+                    
+            iconYOffset = builder
+                    .comment("Y offset for the Stamina HUD in ICON mode.")
+                    .defineInRange("iconYOffset", 0, -5000, 5000);
+            barWidth = builder.comment(" Width of the bar in pixels (Used for BAR style)").defineInRange("barWidth", 180, 1, 1000);
+            barHeight = builder.comment(" Height of the bar in pixels (Used for BAR style)").defineInRange("barHeight", 2, 1, 100);
             showIcons = builder.comment(" Whether to render text/emoji icons on the stamina bar penalty zones.").define("showIcons", true);
             builder.pop();
 
@@ -356,13 +379,11 @@ public class StaminaConfig {
                     " SMOOTHSTEP: Starts slow, speeds up in the middle, then ends slow.",
                     " EASE_OUT_SINE: Starts fast and then slows down to a stop.",
                     " EASE_OUT_EXPO: Starts extremely fast and then quickly slows down to a stop.").defineEnum("autoHudEasing", AutoHudEasing.EASE_OUT_SINE);
-
             autoHudFadeInSpeed = builder.comment(" Speed the bar fades in.").defineInRange("autoHudFadeInSpeed", 0.08, 0.01, 1.0);
             autoHudFadeOutSpeed = builder.comment(" Speed the bar fades out.").defineInRange("autoHudFadeOutSpeed", 0.05, 0.01, 1.0);
             autoHudSlideInSpeed = builder.comment(" Speed the bar slides in.").defineInRange("autoHudSlideInSpeed", 0.08, 0.01, 1.0);
             autoHudSlideOutSpeed = builder.comment(" Speed the bar slides out.").defineInRange("autoHudSlideOutSpeed", 0.05, 0.01, 1.0);
             autoHudSlideDistance = builder.comment(" How many pixels the bar moves when sliding out.").defineInRange("autoHudSlideDistance", 45, 0, 1000);
-
             autoHudLingerTime = builder.comment(" How long (in ticks) the bar stays visible after you stop using stamina (20 ticks = 1s).").defineInRange("autoHudLingerTime", 60, 0, 1200);
             autoHudThreshold = builder.comment(" Show the bar if stamina drops below this percentage (0.35 = 35%)").defineInRange("autoHudThreshold", 0.35, 0.0, 1.0);
             autoHudShowOnPenalties = builder.comment(" Force the bar to stay visible if you have penalties (hunger, poison, fatigue, weight).").define("autoHudShowOnPenalties", true);
