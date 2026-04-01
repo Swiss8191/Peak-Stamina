@@ -1,10 +1,11 @@
 package com.peakstamina.handlers;
 
 import com.peakstamina.config.StaminaConfig;
-import com.peakstamina.config.StaminaLists; 
+import com.peakstamina.config.StaminaLists;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -12,9 +13,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,15 +23,30 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class WeightHandler {
 
-    private static final Map<Item, Double> itemWeightCache = new HashMap<>();
+    public static boolean debugNbtPaths = false;
+
+    private static final Map<String, Double> itemWeightCache = new HashMap<>();
     private static final Map<TagKey<Item>, Double> tagWeightCache = new HashMap<>();
     private static final Map<Item, String> containerPathCache = new HashMap<>();
+    private static final Map<Item, List<NbtWeightPath>> NBT_WEIGHT_PATHS_CACHE = new HashMap<>();
 
     public static final List<CustomWeightProvider> CUSTOM_PROVIDERS = new ArrayList<>();
 
     @FunctionalInterface
     public interface CustomWeightProvider {
         double getWeight(ItemStack stack, double baseHeuristic, int currentDepth);
+    }
+
+    private static class NbtWeightPath {
+        String[] path;
+        double fallbackWeight;
+        boolean applyIfMissing;
+
+        NbtWeightPath(String[] path, double fallbackWeight, boolean applyIfMissing) {
+            this.path = path;
+            this.fallbackWeight = fallbackWeight;
+            this.applyIfMissing = applyIfMissing;
+        }
     }
 
     public static double calculateTotalWeight(Player player) {
@@ -173,15 +189,57 @@ public class WeightHandler {
         if (stack.isEmpty()) return 0.0;
         Item item = stack.getItem();
         int count = stack.getCount();
+        String regName = ForgeRegistries.ITEMS.getKey(item).toString();
 
-        if (itemWeightCache.containsKey(item)) {
-            return itemWeightCache.get(item) * count;
+        double totalWeight = 0.0;
+        boolean overridden = false;
+
+        if (itemWeightCache.containsKey(regName)) {
+            totalWeight += itemWeightCache.get(regName);
+            overridden = true;
         }
 
-        for (Map.Entry<TagKey<Item>, Double> entry : tagWeightCache.entrySet()) {
-            if (stack.is(entry.getKey())) {
-                return entry.getValue() * count;
+        if (!overridden) {
+            for (Map.Entry<TagKey<Item>, Double> entry : tagWeightCache.entrySet()) {
+                if (stack.is(entry.getKey())) {
+                    totalWeight += entry.getValue();
+                    overridden = true;
+                    break;
+                }
             }
+        }
+
+        if (NBT_WEIGHT_PATHS_CACHE.containsKey(item)) {
+            overridden = true; 
+            CompoundTag tag = stack.getTag();
+            
+            for (NbtWeightPath nbtPath : NBT_WEIGHT_PATHS_CACHE.get(item)) {
+                String extractedId = tag != null ? getStringFromNbtPath(tag, nbtPath.path) : null;
+                double addedWeight = 0.0;
+                
+                if (extractedId != null) {
+                    if (itemWeightCache.containsKey(extractedId)) {
+                        addedWeight = itemWeightCache.get(extractedId);
+                    } else {
+                        addedWeight = nbtPath.fallbackWeight;
+                    }
+                } else if (nbtPath.applyIfMissing) {
+                    addedWeight = nbtPath.fallbackWeight;
+                }
+                
+                totalWeight += addedWeight;
+
+                if (debugNbtPaths) {
+                    System.out.println("[PeakStamina NBT Debug] Base Item: " + regName + 
+                        " | Path: " + Arrays.toString(nbtPath.path) + 
+                        " | Found ID: " + extractedId + 
+                        " | Weight Added: " + addedWeight);
+                }
+            }
+        }
+
+        if (overridden) {
+            return totalWeight * count;
         }
 
         int maxStack = item.getMaxStackSize();
@@ -191,20 +249,32 @@ public class WeightHandler {
         return singleWeight * count;
     }
 
+    private static String getStringFromNbtPath(CompoundTag root, String[] path) {
+        if (root == null) return null;
+        CompoundTag current = root;
+        for (int i = 0; i < path.length - 1; i++) {
+            if (current.contains(path[i], Tag.TAG_COMPOUND)) {
+                current = current.getCompound(path[i]);
+            } else {
+                return null;
+            }
+        }
+        Tag finalTag = current.get(path[path.length - 1]);
+        return finalTag != null ? finalTag.getAsString() : null;
+    }
+
     public static void validateCache() {
         List<? extends String> itemConfig = StaminaLists.LISTS.customItemWeights.get();
         List<? extends String> tagConfig = StaminaLists.LISTS.customTagWeights.get();
         List<? extends String> containerConfig = StaminaLists.LISTS.customContainerPaths.get();
+        List<? extends String> nbtConfig = StaminaLists.LISTS.nbtWeightPaths.get();
 
         itemWeightCache.clear();
         for (String entry : itemConfig) {
             try {
                 String[] parts = entry.split(";");
                 if (parts.length >= 2) {
-                    ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
-                    if (loc != null && ForgeRegistries.ITEMS.containsKey(loc)) {
-                        itemWeightCache.put(ForgeRegistries.ITEMS.getValue(loc), Double.parseDouble(parts[1].trim()));
-                    }
+                    itemWeightCache.put(parts[0].trim(), Double.parseDouble(parts[1].trim()));
                 }
             } catch (Exception ignored) {}
         }
@@ -234,6 +304,27 @@ public class WeightHandler {
                     }
                 }
             } catch (Exception ignored) {}
+        }
+
+        NBT_WEIGHT_PATHS_CACHE.clear();
+        if (nbtConfig != null) {
+            for (String entry : nbtConfig) {
+                try {
+                    String[] parts = entry.split(";");
+                    if (parts.length >= 4) {
+                        ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
+                        if (loc != null && ForgeRegistries.ITEMS.containsKey(loc)) {
+                            Item item = ForgeRegistries.ITEMS.getValue(loc);
+                            String[] path = parts[1].trim().split("\\.");
+                            double fallback = Double.parseDouble(parts[2].trim());
+                            boolean applyIfMissing = Boolean.parseBoolean(parts[3].trim());
+                            
+                            NBT_WEIGHT_PATHS_CACHE.computeIfAbsent(item, k -> new ArrayList<>())
+                                    .add(new NbtWeightPath(path, fallback, applyIfMissing));
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
         }
     }
 }

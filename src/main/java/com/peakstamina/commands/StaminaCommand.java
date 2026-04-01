@@ -159,6 +159,23 @@ public class StaminaCommand {
                     return 1;
                 })
             )
+
+            .then(Commands.literal("reload")
+                .executes(context -> {
+                    // Refresh all stamina caches
+                    com.peakstamina.handlers.ServerStaminaHandler.refreshAllCaches();
+                    com.peakstamina.handlers.WeightHandler.validateCache();
+                    com.peakstamina.handlers.MobStaminaHandler.refreshCache();
+
+                    // Refresh compat caches if the mods are loaded
+                    if (net.minecraftforge.fml.ModList.get().isLoaded("parcool")) {
+                        com.peakstamina.compat.ParCoolCompat.refreshCache();
+                    }
+
+                    context.getSource().sendSuccess(() -> net.minecraft.network.chat.Component.literal("§a[PeakStamina] Configs and weight caches successfully reloaded!"), true);
+                    return 1;
+                })
+            )
         );
     }
 

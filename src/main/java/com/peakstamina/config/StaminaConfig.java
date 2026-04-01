@@ -299,7 +299,7 @@ public class StaminaConfig {
         public final ForgeConfigSpec.IntValue barXOffset;
         public final ForgeConfigSpec.IntValue barYOffset;
         public final ForgeConfigSpec.IntValue iconXOffset;
-        public final ForgeConfigSpec.IntValue iconYOffset;  
+        public final ForgeConfigSpec.IntValue iconYOffset;
         public final ForgeConfigSpec.IntValue barWidth;
         public final ForgeConfigSpec.IntValue barHeight;
         public final ForgeConfigSpec.IntValue colorBackground;
@@ -335,7 +335,7 @@ public class StaminaConfig {
             barXOffset = builder
                     .comment("X offset for the Stamina HUD in BAR mode.")
                     .defineInRange("barXOffset", 0, -5000, 5000);
-                    
+
             barYOffset = builder
                     .comment("Y offset for the Stamina HUD in BAR mode.")
                     .defineInRange("barYOffset", 0, -5000, 5000);
@@ -343,7 +343,7 @@ public class StaminaConfig {
             iconXOffset = builder
                     .comment("X offset for the Stamina HUD in ICON mode.")
                     .defineInRange("iconXOffset", 0, -5000, 5000);
-                    
+
             iconYOffset = builder
                     .comment("Y offset for the Stamina HUD in ICON mode.")
                     .defineInRange("iconYOffset", 0, -5000, 5000);

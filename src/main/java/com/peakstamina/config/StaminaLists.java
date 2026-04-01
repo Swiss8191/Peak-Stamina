@@ -237,6 +237,18 @@ public class StaminaLists {
                 "forge:obsidian;1.2"
         );
 
+        private static final List<String> DEFAULT_NBT_PATHS = Arrays.asList(
+                "tacz:ammo;AmmoId;0.2;true",
+                "tacz:attachment;AttachmentId;1;true",
+                "tacz:modern_kinetic_gun;GunId;5;true",
+                "tacz:modern_kinetic_gun;AttachmentSCOPE.tag.AttachmentId;1;false",
+                "tacz:modern_kinetic_gun;AttachmentMUZZLE.tag.AttachmentId;1;false",
+                "tacz:modern_kinetic_gun;AttachmentSTOCK.tag.AttachmentId;2;false",
+                "tacz:modern_kinetic_gun;AttachmentGRIP.tag.AttachmentId;2;false",
+                "tacz:modern_kinetic_gun;AttachmentLASER.tag.AttachmentId;2;false",
+                "tacz:modern_kinetic_gun;AttachmentEXTENDED_MAG.tag.AttachmentId;3;false"
+        );
+
         public ForgeConfigSpec.ConfigValue<List<? extends String>> itemCosts;
         public ForgeConfigSpec.ConfigValue<List<? extends String>> itemCostTags;
         public ForgeConfigSpec.ConfigValue<List<? extends String>> customExhaustionPenalties;
@@ -247,6 +259,7 @@ public class StaminaLists {
         public ForgeConfigSpec.ConfigValue<List<? extends String>> customContainerPaths;
         public ForgeConfigSpec.ConfigValue<List<? extends String>> customItemWeights;
         public ForgeConfigSpec.ConfigValue<List<? extends String>> customTagWeights;
+        public ForgeConfigSpec.ConfigValue<List<? extends String>> nbtWeightPaths;
         public ForgeConfigSpec.ConfigValue<List<? extends String>> parCoolActionCosts;
 
         public Lists(ForgeConfigSpec.Builder builder) {
@@ -355,12 +368,13 @@ public class StaminaLists {
             customItemWeights = builder.comment(
                     " ",
                     " Priority 1: Explicit Item Weights.",
-                    " These values override the Auto-Weigher. Use this for heavy equipment.",
+                    " These values override the Auto-Weigher. Use this for heavy equipment. ",
                     " ",
                     " Format: 'modid:item;weight'",
                     " ",
                     " Example: 'minecraft:netherite_chestplate;15.0'",
-                    " "
+                    " ",
+                    " Note: This is the weight of every 1 item not stack of items."
             ).defineList("customItemWeights", DEFAULT_ITEM_WEIGHTS, obj -> obj instanceof String);
 
             customTagWeights = builder.comment(
@@ -373,6 +387,37 @@ public class StaminaLists {
                     " Example: 'forge:obsidian;1.2'",
                     " "
             ).defineList("customTagWeights", DEFAULT_TAG_WEIGHTS, obj -> obj instanceof String);
+
+                builder.push("Special NBT paths");
+                nbtWeightPaths = builder.comment(
+                        " ",
+                        " Advanced NBT Weight Extraction",
+                        " ",
+                        " WHEN TO USE THIS:",
+                        " Most items in Minecraft use a standard Item ID (e.g., 'minecraft:apple' or 'minecraft:iron_sword').",
+                        " For those, you do NOT need this list. Just put them directly into the Explicit Item Weights list.",
+                        " However, some complex mods (like TACZ) use a single base item (e.g., 'tacz:ammo') and store the ",
+                        " ACTUAL specific item ID (like 'tacz:9mm') hidden inside NBT folders.",
+                        " This list tells the weight system exactly where to look inside the NBT data to find that true ID.",
+                        " ",
+                        " WHERE TO PUT THE IDS:",
+                        " Once you define a path here, the weight system will get the hidden ID (e.g., 'tacz:9mm').",
+                        " You must then put that extracted ID into your 'Explicit Item Weights' list to assign it a weight.",
+                        " ",
+                        " Format: 'base_item_id ; nbt.path.to.id ; fallbackWeight ; applyFallbackIfMissing'",
+                        " ",
+                        " Examples:",
+                        "  'tacz:ammo;AmmoId;0.05;true'",
+                        "   (Looks inside 'tacz:ammo' for 'AmmoId'. If it finds an ID like 'tacz:9mm', it checks Explicit Weights for it.",
+                        "   If 'tacz:9mm' isn't configured, it adds 0.05 weight. If the AmmoId tag is missing entirely, it adds 0.05 because true.)",
+                        " ",
+                        "  'tacz:modern_kinetic_gun;AttachmentSCOPE.tag.AttachmentId;0.5;false'",
+                        "   (Digs through the NBT folders to check for a scope. If found, checks explicit weights, else adds 0.5.",
+                        "   If no scope is equipped (AttachmentSCOPE is empty), it adds 0.0 weight because false. If it was true it would add 0.5 weight regardless of if its empty or not.)",
+                        " ",
+                        " Note: This uses the same logic as universal penalties (the '.' behavior, for assistance refer to the wiki)"
+                        ).defineList("nbtWeightPaths", DEFAULT_NBT_PATHS, obj -> obj instanceof String);
+                builder.pop();
             builder.pop();
         }
 
@@ -388,7 +433,7 @@ public class StaminaLists {
                     " Arguments Explained:",
                     "  1. Type:       'NBT' (checks player data) or 'EFFECT' (checks potion amplifier/level).",
                     "  2. Key:        The NBT path (e.g. 'thirstLevel') or Effect ID (e.g. 'minecraft:poison').",
-                    "  3. Comparator: Logic for calculating the penalty.",
+                    "  3. Comparator: Logic for calculating the penalty.",f
                     "     SCALE MODES (Linear penalty between two points):",
                     "       >  : Penalty increases as value rises above Threshold, maxing at WorstValue.",
                     "       <  : Penalty increases as value falls below Threshold, maxing at WorstValue.",
@@ -431,7 +476,7 @@ public class StaminaLists {
                     "    -> Every poison level adds 5 penalty. Caps at 50.",
                     " ",
                     " --- ADVANCED NBT PATHS (Nested Tags & ForgeCaps) ---",
-                    " Sometimes even with the correct path it may not work. In this scenario try adding 'ForgeCaps.' to the start.",
+                    " Sometimes even with the correct path it may not work. In this scenario try adding 'ForgeCaps.' to the start. Also use '.' to look inside tags. For assistance refer to the wiki",
                     " ",
                     " Examples of using '.' to look inside tags:",
                     "  \"ForgeCaps.legendarysurvivaloverhaul:thirst.hydrationLevel\"",
@@ -445,7 +490,7 @@ public class StaminaLists {
             builder.push("Universal Buffs");
             universalBuffs = builder.comment(
                     " ",
-                    " Universal Compatibility for granting Bonus Stamina.",
+                    " Universal Compatibility for granting Bonus Stamina. Uses same logic as universal penalties.",
                     " Use this to reward players with Bonus Stamina when they meet specific NBT or Potion Effect conditions.",
                     " ",
                     " Format: \"Type;Key;ActionMode;Threshold;LimitOrCooldown;Amount;BurstAmount;ScalingFactor\"",
