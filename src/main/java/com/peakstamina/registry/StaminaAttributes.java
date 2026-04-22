@@ -16,7 +16,7 @@ public class StaminaAttributes {
             () -> new RangedAttribute("attribute.peakstamina.max_stamina", 100.0D, 0.0D, 1024.0D).setSyncable(true));
 
     public static final RegistryObject<Attribute> SLOW_CLIMB_SPEED = ATTRIBUTES.register("slow_climb_speed",
-            () -> new RangedAttribute("attribute.peakstamina.slow_climb_speed", 0.4D, 0.0D, 1.0D).setSyncable(true));
+            () -> new RangedAttribute("attribute.peakstamina.slow_climb_speed", 1.0D, 0.0D, 1.0D).setSyncable(true));
 
     public static final RegistryObject<Attribute> STAMINA_REGEN = ATTRIBUTES.register("stamina_regen",
             () -> new RangedAttribute("attribute.peakstamina.stamina_regen", 1.0D, 0.0D, 1024.0D).setSyncable(true));

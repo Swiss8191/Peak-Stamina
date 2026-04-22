@@ -260,7 +260,9 @@ public class StaminaLists {
         public ForgeConfigSpec.ConfigValue<List<? extends String>> customItemWeights;
         public ForgeConfigSpec.ConfigValue<List<? extends String>> customTagWeights;
         public ForgeConfigSpec.ConfigValue<List<? extends String>> nbtWeightPaths;
+
         public ForgeConfigSpec.ConfigValue<List<? extends String>> parCoolActionCosts;
+        public ForgeConfigSpec.DoubleValue combatRollCost;
 
         public Lists(ForgeConfigSpec.Builder builder) {
             initOtherLists(builder);
@@ -269,7 +271,7 @@ public class StaminaLists {
             initConsumables(builder);
             initUniversalPenalties(builder);
             initUniversalBuffs(builder);
-            initParcoolCompat(builder);
+            initCompat(builder);
         }
 
         private void initConsumables(ForgeConfigSpec.Builder builder) {
@@ -433,7 +435,7 @@ public class StaminaLists {
                     " Arguments Explained:",
                     "  1. Type:       'NBT' (checks player data) or 'EFFECT' (checks potion amplifier/level).",
                     "  2. Key:        The NBT path (e.g. 'thirstLevel') or Effect ID (e.g. 'minecraft:poison').",
-                    "  3. Comparator: Logic for calculating the penalty.",f
+                    "  3. Comparator: Logic for calculating the penalty.",
                     "     SCALE MODES (Linear penalty between two points):",
                     "       >  : Penalty increases as value rises above Threshold, maxing at WorstValue.",
                     "       <  : Penalty increases as value falls below Threshold, maxing at WorstValue.",
@@ -530,7 +532,7 @@ public class StaminaLists {
             builder.pop();
         }
 
-        private void initParcoolCompat(ForgeConfigSpec.Builder builder) {
+        private void initCompat(ForgeConfigSpec.Builder builder) {
             builder.push("ParCool Compatibility");
             parCoolActionCosts = builder.comment(
                     " ",
@@ -551,6 +553,11 @@ public class StaminaLists {
                     " Note: Fast run and Fast swim costs are added onto the cost of regular sprinting and regular swimming.",
                     " "
             ).defineList("parCoolActionCosts", DEFAULT_PARCOOL_COSTS, obj -> obj instanceof String);
+            builder.pop();
+
+            builder.push("Combat Roll Compatibility");
+            combatRollCost = builder.comment(" How much stamina a Combat Roll costs.")
+                    .defineInRange("combatRollCost", 15.0, -1000.0, 1000.0);
             builder.pop();
         }
     }

@@ -9,6 +9,7 @@ import net.minecraft.world.entity.EntityType;
 
 import com.peakstamina.compat.ParCoolCompat;
 import com.peakstamina.compat.PackedUpCompat;
+import com.peakstamina.compat.CombatRollCompat;
 import com.peakstamina.compat.ParCoolClientCompat;
 import com.peakstamina.config.ExperimentalConfig;
 import com.peakstamina.config.StaminaConfig;
@@ -26,6 +27,7 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.event.entity.EntityAttributeModificationEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+
 
 @Mod(peakStaminaMod.MODID)
 public class peakStaminaMod {
@@ -62,6 +64,10 @@ public class peakStaminaMod {
 
         if (net.minecraftforge.fml.ModList.get().isLoaded("packedup")) {
             PackedUpCompat.init();
+        }
+
+        if (net.minecraftforge.fml.ModList.get().isLoaded("combatroll")) {
+            CombatRollCompat.register();
         }
     }
 
