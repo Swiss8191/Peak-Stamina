@@ -9,6 +9,7 @@ public class ExperimentalConfig {
 
     public static final Experimental EXPERIMENTAL;
     public static final ForgeConfigSpec EXPERIMENTAL_SPEC;
+   
 
     static {
         final Pair<Experimental, ForgeConfigSpec> specPair = new ForgeConfigSpec.Builder().configure(Experimental::new);
@@ -42,13 +43,28 @@ public class ExperimentalConfig {
                 "minecraft:ravager; 6; 120; HeavyMelee"
         );
 
-        public final ForgeConfigSpec.ConfigValue<Boolean> enableMobStamina;
-        public final ForgeConfigSpec.ConfigValue<Boolean> enableExhaustionParticles;
-        public final ForgeConfigSpec.ConfigValue<List<? extends String>> exhaustionProfiles;
-        public final ForgeConfigSpec.ConfigValue<List<? extends String>> customMobStamina;
+        private static final List<String> DEFAULT_ACTION_HOOKS = Arrays.asList(
+                "MOUNT; minecraft:horse; 12.0",
+                "INTERACT_ENTITY; minecraft:villager; 1.0", 
+                "HURT; fall; 10.0",
+                "FISH; ANY; 15.0"
+        );
+
+        public ForgeConfigSpec.ConfigValue<Boolean> enableMobStamina;
+        public ForgeConfigSpec.ConfigValue<Boolean> enableExhaustionParticles;
+        public ForgeConfigSpec.ConfigValue<List<? extends String>> exhaustionProfiles;
+        public ForgeConfigSpec.ConfigValue<List<? extends String>> customMobStamina;
+        public ForgeConfigSpec.ConfigValue<List<? extends String>> customActionHooks;
 
         public Experimental(ForgeConfigSpec.Builder builder) {
-            builder.comment("Experimental features! These may impact performance or balance, use with caution.").push("Entity Stamina");
+            builder.comment("Experimental features! These may impact performance or balance, use with caution.");
+            
+            initEntityStamina(builder);
+            initActionHooks(builder);
+        }
+
+        private void initEntityStamina(ForgeConfigSpec.Builder builder) {
+            builder.push("Entity Stamina");
 
             enableMobStamina = builder.comment("Enable stamina system for Mobs.")
                     .define("enableMobStamina", true);
@@ -60,7 +76,7 @@ public class ExperimentalConfig {
                     "",
                     "Exhaustion Profiles",
                     "Define reusable attribute debuff templates here. Modded attributes are supported.",
-                    "Format: \"ProfileName; AttributeID=Multiplier, AttributeID=Multiplier...\"",
+                    "Format: \"ProfileName; AttributeI D=Multiplier, AttributeID=Multiplier...\"",
                     ""
             ).defineList("exhaustionProfiles", DEFAULT_PROFILES, obj -> obj instanceof String);
 
@@ -76,6 +92,28 @@ public class ExperimentalConfig {
                     "Note: Ranged mobs that use bows and crossbows (should work with modded?) with attack attribute reduction will also lower the velocity of the arrow.",
                     ""
             ).defineList("customMobStamina", DEFAULT_MOB_STAMINA, obj -> obj instanceof String);
+
+            builder.pop();
+        }
+
+        private void initActionHooks(ForgeConfigSpec.Builder builder) {
+            builder.push("Action Hooks");
+
+            customActionHooks = builder.comment(
+                "",
+                "Custom Action Hooks",
+                "Drain or restore stamina when specific Forge events occur.",
+                "Format: \"EVENT_TYPE; ARGUMENT; COST\"",
+                "",
+                "Available Event Types & Arguments:",
+                "  MOUNT ; entity_id (e.g., minecraft:horse, minecraft:boat, or ANY)",
+                "  INTERACT_ENTITY ; entity_id (e.g., minecraft:villager, or ANY)",
+                "  HURT ; damage_source (e.g., fall, onFire, mob, arrow, or ANY)",
+                "  FISH ; ANY",
+                "",
+                "Note: If cost is positive and the player lacks stamina, cancelable events (like MOUNT) will be blocked.",
+                "Note: Negative costs will restore stamina instead."
+            ).defineList("customActionHooks", DEFAULT_ACTION_HOOKS, obj -> obj instanceof String);
 
             builder.pop();
         }

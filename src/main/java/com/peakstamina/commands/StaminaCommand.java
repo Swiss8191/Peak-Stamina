@@ -69,6 +69,7 @@ public class StaminaCommand {
             .then(Commands.literal("get")
                 .executes(context -> {
                     ServerPlayer player = context.getSource().getPlayerOrException();
+        
                     player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
                         context.getSource().sendSuccess(() -> Component.literal(
                             "§aCurrent Stamina: §f" + String.format("%.2f", cap.stamina) + 
@@ -89,6 +90,7 @@ public class StaminaCommand {
                             cap.stamina = amount;
                             if (cap.stamina > cap.maxStamina) cap.stamina = cap.maxStamina;
                             sync(player, cap);
+ 
                             context.getSource().sendSuccess(() -> Component.literal("§aStamina set to: §f" + amount), true);
                         });
                         return 1;
@@ -103,6 +105,7 @@ public class StaminaCommand {
                         .executes(context -> {
                             String attrName = StringArgumentType.getString(context, "attribute");
                             float value = FloatArgumentType.getFloat(context, "value");
+          
                             return setAttribute(context.getSource(), attrName, value);
                         })
                     )
@@ -145,7 +148,6 @@ public class StaminaCommand {
                         msg.append("§7Max (Base): §b").append(getAttr(player, StaminaAttributes.MAX_STAMINA.get())).append("\n");
 
                         msg.append("§e--- Configured Attributes ---\n");
-                        
                         // Automatically iterate, sort, and print every attribute in the map
                         ATTRIBUTE_MAP.entrySet().stream()
                             .sorted(Map.Entry.comparingByKey())
@@ -153,7 +155,6 @@ public class StaminaCommand {
                                 msg.append("§7").append(entry.getKey()).append(": §f")
                                    .append(String.format("%.2f", getAttr(player, entry.getValue().get()))).append("\n");
                             });
-
                         context.getSource().sendSuccess(() -> Component.literal(msg.toString()), false);
                     });
                     return 1;
@@ -166,6 +167,7 @@ public class StaminaCommand {
                     com.peakstamina.handlers.ServerStaminaHandler.refreshAllCaches();
                     com.peakstamina.handlers.WeightHandler.validateCache();
                     com.peakstamina.handlers.MobStaminaHandler.refreshCache();
+                    com.peakstamina.handlers.CustomActionHandler.refreshCache();
 
                     // Refresh compat caches if the mods are loaded
                     if (net.minecraftforge.fml.ModList.get().isLoaded("parcool")) {

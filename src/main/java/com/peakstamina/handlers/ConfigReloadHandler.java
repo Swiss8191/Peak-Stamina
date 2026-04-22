@@ -28,10 +28,16 @@ public class ConfigReloadHandler {
         if (event.getConfig().getSpec() == StaminaLists.LISTS_SPEC) {
             ServerStaminaHandler.refreshAllCaches();
             WeightHandler.validateCache();
-
+            
             if (ParCoolCompat.isLoaded()) {
                 ParCoolCompat.refreshCache();
             }
+            
+        }
+
+        if (event.getConfig().getSpec() == ExperimentalConfig.EXPERIMENTAL_SPEC) {
+            MobStaminaHandler.refreshCache(); 
+            CustomActionHandler.refreshCache();
         }
     }
 }

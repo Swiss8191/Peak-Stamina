@@ -82,23 +82,26 @@ public class ServerStaminaHandler {
         float scalingFactor;
     }
 
-    private static class ConsumableData {
-
-        double instantAmount = 0.0;
-        double regenAmount = 0.0;
-        double penaltyResistStrength = 0.0;
-        double poisonAmount = 0.0;
-        double bonusAmount = 0.0;
-        int durationTicks = 0;
-        boolean isInstant = false;
-        boolean isRegen = false;
-        boolean isPenalty = false;
-        boolean isPoison = false;
-        boolean isBonus = false;
-        List<java.util.AbstractMap.SimpleEntry<String, Double>> specificCures = new ArrayList<>();
+    public static class ConsumableData {
+        public double instantAmount = 0.0;
+        public double regenAmount = 0.0;
+        public double penaltyResistStrength = 0.0;
+        public double poisonAmount = 0.0;
+        public double bonusAmount = 0.0;
+        public int durationTicks = 0;
+        public boolean isInstant = false;
+        public boolean isRegen = false;
+        public boolean isPenalty = false;
+        public boolean isPoison = false;
+        public boolean isBonus = false;
+        public List<java.util.AbstractMap.SimpleEntry<String, Double>> specificCures = new ArrayList<>();
     }
 
-        private static final Map<Item, ConsumableData> CONSUMABLE_CACHE = new HashMap<>();
+    private static final Map<Item, ConsumableData> CONSUMABLE_CACHE = new HashMap<>();
+        
+    public static ConsumableData getConsumableData(net.minecraft.world.item.Item item) {
+        return CONSUMABLE_CACHE.get(item);
+    }
 
     private static class ExhaustionPenaltyData {
 
@@ -304,12 +307,12 @@ public class ServerStaminaHandler {
             }
 
             if (player.onClimbable() && player.isShiftKeyDown()) {
-                double speedMult = 0.4;
+                double speedMult = StaminaConfig.COMMON.slowClimbSpeed.get();
                 AttributeInstance climbAttr = player.getAttribute(StaminaAttributes.SLOW_CLIMB_SPEED.get());
                 if (climbAttr != null) {
-                    speedMult = climbAttr.getValue();
+                    speedMult *= climbAttr.getValue();
                 }
-                if (speedMult < 0.99) {
+                if (Math.abs(speedMult - 1.0) > 0.001) {
                     player.setDeltaMovement(player.getDeltaMovement().scale(speedMult));
                 }
             }
@@ -791,7 +794,7 @@ public class ServerStaminaHandler {
                         cap.stamina -= (float) finalCost;
                     }
                     isConsuming = swimCost > 0;
-                } else if (player.onClimbable() && Math.abs(player.getDeltaMovement().y) > 0.1 && climbCost != 0) {
+                } else if (player.onClimbable() && !player.isShiftKeyDown() && Math.abs(player.getDeltaMovement().y) > 0.1 && climbCost != 0) {
                     double finalCost;
                     if (climbCost > 0) {
                         finalCost = climbCost * usageMult * climbMult;
@@ -1878,7 +1881,7 @@ public class ServerStaminaHandler {
         }
     }
 
-    private static float getConfiguredItemCost(net.minecraft.world.item.Item item, String actionType) {
+    public static float getConfiguredItemCost(net.minecraft.world.item.Item item, String actionType) {
 
         if (ITEM_COST_CACHE.containsKey(item)) {
             return ITEM_COST_CACHE.get(item).getOrDefault(actionType, 0.0f);
@@ -1893,7 +1896,7 @@ public class ServerStaminaHandler {
         return 0.0f;
     }
 
-    private static float[] getShieldValues(net.minecraft.world.item.Item item) {
+    public static float[] getShieldValues(net.minecraft.world.item.Item item) {
 
         if (ITEM_COST_CACHE.containsKey(item)) {
             Map<String, Float> map = ITEM_COST_CACHE.get(item);
