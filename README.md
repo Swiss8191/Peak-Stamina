@@ -1,9 +1,8 @@
-
 # Peak Stamina
 
-Replaces vanilla sprinting mechanics with a resource management system based on fatigue and hunger. comes with built in compatibility for Tough as Nails, Cold Sweat and ParCool. For additional custom penalties or integrations, refer to the Advanced Features section below.
+Replaces vanilla sprinting mechanics with a resource management system based on fatigue and hunger. comes with compatibility for Tough as Nails, Cold Sweat, ParCool and, Combat roll. For additional custom penalties or integrations, refer to the Advanced Features section below.
 
-For a more indepth and better formatted guide visit the [wiki](https://github.com/Swiss8191/Peak-Stamina/wiki/Peak-Stamina-Home)! Or you can scroll down and read the guide there.
+For a more indepth and better formatted guide visit the [wiki!](https://github.com/Swiss8191/Peak-Stamina/wiki/Peak-Stamina-Home) Or you can scroll down and read the guide there.
 
 ----------
 
@@ -13,7 +12,7 @@ For a more indepth and better formatted guide visit the [wiki](https://github.co
 -   **Fatigue**: Dropping below 25% stamina and staying there accumulates _Fatigue_, which temporarily reduces your maximum stamina cap.
 -   **Food Poisoning**: Eating bad food applies a lingering _Poison_ penalty (purple bar) that blocks a portion of your max stamina until it decays.
 -   **Weight System**: Carrying heavy items reduces your max stamina. The more you carry, the greater the penalty.
--   **Climbing**: Ladders consume stamina. Holding **Shift** enables a _Slow Climb_ (40% speed) that costs no stamina and allows gradual regeneration.
+-   **Climbing**: Ladders consume stamina. Holding **Shift** enables a Slow Climb (40% speed) that costs no stamina and allows gradual regeneration.
 -   **Hunger Penalty**: Low food levels reduce your maximum stamina cap.
 -   **HUD**: A custom, low-profile stamina bar with visual indicators for fatigue, poison, weight, and active penalties.
 
@@ -38,28 +37,29 @@ For a more indepth and better formatted guide visit the [wiki](https://github.co
 -   `disableInCreative` _(Default: `true`)_: If true, Creative mode players are excluded from the stamina system entirely.
 -   `disableInSpectator` _(Default: `true`)_: If true, Spectator mode players are excluded from the stamina system entirely.
 -   `initialMaxStamina` _(Default: `100.0`)_: The starting maximum stamina for all players. All penalties and modifiers are calculated against this base value.
+-   `slowClimbSpeed` _(Default: `0.4`)_: The movement speed multiplier when slow climbing (set to 1 to disable)
 
 
 ### Action Costs
 
 > Set any value to `0` to disable it. Use a negative value to restore stamina during that action instead of draining it.
 
-* `depletionSprint` (Default: `0.15`): Drain per tick while running.
-* `depletionJump` (Default: `0.85`): Instant drain on jump.
-* `depletionAttack` (Default: `3.45`): Instant drain on weapon swing.
-* `depletionMissedAttack` (Default: `1.0`): Instant drain on a missed swing.
-* `depletionBlockBreak` (Default: `1.1`): Instant drain on block break.
-* `depletionBlockPlace` (Default: `1.1`): Instant drain on block place.
-* `depletionClimb` (Default: `0.7`): Drain per tick while on ladders.
-* `depletionSwim` (Default: `0.05`): Drain per tick while in water.
-* `itemInterruptionCooldown` (Default: `120`): Ticks an item remains unusable after running out of stamina while using it.
+* `depletionSprint` _(Default: `0.15`)_: Drain per tick while running.
+* `depletionJump` _(Default: `0.85`)_: Instant drain on jump.
+* `depletionAttack` _(Default: `3.45`)_: Instant drain on weapon swing.
+* `depletionMissedAttack` _(Default: `1.0`)_: Instant drain on a missed swing.
+* `depletionBlockBreak` _(Default: `1.1`)_: Instant drain on block break.
+* `depletionBlockPlace` _(Default: `1.1`)_: Instant drain on block place.
+* `depletionClimb` _(Default: `0.7`)_: Drain per tick while on ladders.
+* `depletionSwim` _(Default: `0.05`_): Drain per tick while in water.
+* `itemInterruptionCooldown` _(Default: `120`)_: Ticks an item remains unusable after running out of stamina while using it.
 
 ### Recovery
 
-* `recoveryPerTick` (Default: `0.36`): Base regeneration speed.
-* `recoveryRestMult` (Default: `1.45`): Multiplier applied when standing still.
-* `recoveryClimbMult` (Default: `0.7`): Multiplier applied when resting on a ladder.
-* `recoveryDelay` (Default: `50`): Ticks before regeneration begins after performing an action.
+* `recoveryPerTick` _(Default: `0.36`)_: Base regeneration speed.
+* `recoveryRestMult` _(Default: `1.45`)_: Multiplier applied when standing still.
+* `recoveryClimbMult` _(Default: `0.7`)_: Multiplier applied when resting on a ladder.
+* `recoveryDelay` _(Default: `50`)_: Ticks before regeneration begins after performing an action.
 
 ### Penalties & Limits
 
@@ -96,23 +96,22 @@ When weight scaling is enabled, the stamina drained by an attack is multiplied b
 `Multiplier = 1.0 + (((WeaponWeight - Normalizer) / Normalizer) * ScaleFactor)`
 
 **Hit Attack Settings:**
--   `depletionAttack` (Default: `3.45`): Base stamina drained per successful attack.
--   `attackCostScalesWithWeight` (Default: `false`): Enables or disables the dynamic weight formula for successful hits.
--   `attackWeightNormalizer` (Default: `3.0`): The baseline weapon weight that results in exactly a 1.0x stamina cost multiplier.
--   `attackWeightScaleFactor` (Default: `1.0`): How intensely weight affects the attack cost.
--   `attackWeightMinMultiplier` (Default: `0.4`): The absolute minimum stamina cost multiplier.
--   `attackWeightMaxMultiplier` (Default: `5.0`): The absolute maximum stamina cost multiplier.
+-   `depletionAttack` _(Default: `3.45`)_: Base stamina drained per successful attack.
+-   `attackCostScalesWithWeight` _(Default: `true`)_: Enables or disables the dynamic weight formula for successful hits.
+-   `attackWeightNormalizer` _(Default: `3.0`)_: The baseline weapon weight that results in exactly a 1.0x stamina cost multiplier.
+-   `attackWeightScaleFactor` _(Default: `1.0`)_: How intensely weight affects the attack cost.
+-   `attackWeightMinMultiplier` _(Default: `0.4`)_: The absolute minimum stamina cost multiplier.
+-   `attackWeightMaxMultiplier` _(Default: `5.0`)_: The absolute maximum stamina cost multiplier.
     
 
 **Missed Attack Settings:**
--   `depletionMissedAttack` (Default: `1.0`): Base stamina drained when swinging at the air.
--   `missedAttackCostScalesWithWeight` (Default: `false`): Enables or disables the dynamic weight formula for missed attacks.
--   `missedAttackWeightNormalizer` (Default: `3.0`): The baseline weapon weight for a 1.0x multiplier on missed attacks.
--   `missedAttackWeightScaleFactor` (Default: `1.0`): How intensely weight affects the missed attack cost.
--   `missedAttackWeightMinMultiplier` (Default: `0.4`): The minimum possible stamina cost multiplier for missed attacks.
--   `missedAttackWeightMaxMultiplier` (Default: `5.0`): The maximum possible stamina cost multiplier for missed attacks.
+-   `depletionMissedAttack` _(Default: `1.0`)_: Base stamina drained when swinging at the air.
+-   `missedAttackCostScalesWithWeight` _(Default: `true`)_: Enables or disables the dynamic weight formula for missed attacks.
+-   `missedAttackWeightNormalizer` _(Default: `3.0`)_: The baseline weapon weight for a 1.0x multiplier on missed attacks.
+-   `missedAttackWeightScaleFactor` _(Default: `1.0`)_: How intensely weight affects the missed attack cost.
+-   `missedAttackWeightMinMultiplier` _(Default: `0.4`)_: The minimum possible stamina cost multiplier for missed attacks.
+-   `missedAttackWeightMaxMultiplier` _(Default: `5.0`)_: The maximum possible stamina cost multiplier for missed attacks.
     
-
 ----------
 
 ### Elytra Mechanics
@@ -158,34 +157,38 @@ Tracks the total weight of items in your inventory and applies a stamina penalty
 -   `maxWeightPenaltyAmount` _(Default: `40.0`)_: Maximum stamina reduction at full weight.
 -   `maxWeightRecursionDepth` _(Default: `3`)_: How many levels deep to scan nested containers.
 -   `autoWeightBase` _(Default: `10.0`)_: Base weight for items not explicitly listed.
+    
 
 #### How Weights Are Calculated
 
-Every item's weight is determined by one of three priority tiers (highest wins):
+Every item's weight is determined by one of four priority tiers (highest wins):
 
-1.  **Explicit Item Weights**: defined in `customItemWeights`
-2.  **Tag Weights**: defined in `customTagWeights`
-3.  **Auto-Weigher**: heuristic fallback: `Weight = (autoWeightBase / MaxStackSize) × Count`
+1.  **Explicit Item Weights**: defined in `customItemWeights` (Supports standard IDs and Virtual NBT IDs).
+2.  **Tag Weights**: defined in `customTagWeights`.
+3.  **Advanced NBT Extraction**: defined in `nbtWeightPaths` (Extracts hidden IDs to check against explicit weights).
+4.  **Auto-Weigher**: heuristic fallback: `Weight = (autoWeightBase / MaxStackSize) × Count`.
+    
 
 With `autoWeightBase = 10.0`, a sword (stack 1), 16 Ender Pearls, and 64 dirt blocks all weigh 10.0 total: carrying more of a stackable item doesn't multiply weight indefinitely. Containers (shulker boxes, backpacks) include the weight of their contents. Shulker Boxes, Curios, and PackedUp are supported automatically.
 
 #### Explicit Item Weights
 
-Format: `"modid:item;weight"`: weight is per individual item, not per stack.
+**Format:** `"modid:item;weight"`: weight is per individual item, not per stack.
+_Note: This list also accepts "Virtual IDs" extracted by the Advanced NBT system (e.g., `"tacz:9mm;0.05"`)._
 
-```toml
+```
 customItemWeights = [
     "minecraft:netherite_chestplate;15.0",
     "minecraft:diamond_sword;4.0",
-    "minecraft:obsidian;1.2"
+    "minecraft:obsidian;1.2",
+    "tacz:9mm;0.05"
 ]
 ```
-
 #### Tag Weights
 
-Format: `"tag;weight"`: weight applies to each individual item within the tag.
+**Format:** `"tag;weight"`: weight applies to each individual item within the tag.
 
-```toml
+```
 customTagWeights = [
     "forge:ores;0.25",
     "forge:storage_blocks;0.15",
@@ -197,33 +200,59 @@ customTagWeights = [
 
 For backpack mods that store items in custom NBT. Only needed if a mod isn't detected automatically.
 
-Format: `"modid:item;path.to.list"`
+**Format:** `"modid:item;path.to.list"`
 
-```toml
+```
 customContainerPaths = [
     "somemod:satchel;Inventory",
     "anothermod:backpack;StorageTag.Items"
 ]
 ```
 
-#### Weight Limit Attribute
+#### Advanced NBT Weight Extraction (For Complex Mods)
 
+**WHEN TO USE THIS:**
+Most items in Minecraft use a standard Item ID (e.g., `minecraft:apple`). For those, you do NOT need this list; just put them directly into the Explicit Item Weights list.
+
+However, some complex mods (like TACZ) use a single base item (e.g., `tacz:ammo`) and store the actual specific item ID (like `tacz:9mm`) hidden inside NBT folders. This list tells the weight system exactly where to look inside the NBT data to find that true "Virtual ID".
+
+**WHERE TO PUT THE IDS:**
+Once you define a path here, the weight system will extract the hidden Virtual ID. You must then put that extracted ID into your `Explicit Item Weights` list to assign it a weight.
+
+**Format:** `"base_item_id ; nbt.path.to.id ; fallbackWeight ; applyFallbackIfMissing"`
+
+**Examples:**
+
+```
+nbtWeightPaths = [
+    # Example 1: Ammo (Uses 'true' for the fallback flag)
+    # Looks inside 'tacz:ammo' for 'AmmoId'. If it finds an ID like 'tacz:9mm', it checks Explicit Weights.
+    # If 'tacz:9mm' isn't explicitly configured, it adds 0.05 weight. 
+    # If the AmmoId tag is missing entirely, it still adds 0.05 because the flag is true.
+    "tacz:ammo;AmmoId;0.05;true",
+
+    # Example 2: Attachments (Uses 'false' for the fallback flag)
+    # Digs through a gun's NBT folders (opens AttachmentSCOPE, then tag, to read AttachmentId) to check for a scope.
+    # If a scope is found, it checks Explicit Weights, else adds 0.5.
+    # If no scope is equipped (the folder is empty), it adds 0.0 weight because the flag is false.
+    # (If it was true, it would add 0.5 phantom weight even if the gun had no scope. So false is better here)
+    "tacz:modern_kinetic_gun;AttachmentSCOPE.tag.AttachmentId;0.5;false"
+]
+```
+#### Weight Limit Attribute
 Increase a player's carry capacity with `/stamina attr weight_limit <value>`. Each point adds `+0.5` to the threshold and `+1.0` to the limit.
 
 ----------
 
 ### Item Depletion Costs
-
 Assign stamina costs to any item. Multiple cost types can be stacked on a single item (e.g., a shield that drains stamina both to hold and to block with).
 
 > Use a negative cost value to restore stamina during the action instead of draining it.
 
-`itemInterruptionCooldown` _(Default: `80`)_: Cooldown in ticks if you run out of stamina while using an item.
+- `itemInterruptionCooldown` _(Default: `80`)_: Cooldown in ticks if you run out of stamina while using an item.
 
 **Format:** `"ItemId;TYPE;Cost;TYPE;Cost..."`
-
 **Cost types:**
-
 -   `TICK`: Drains stamina continuously while the item is in use. Cancels the action if stamina hits 0.
 -   `BLOCK`: Drains stamina only when a Shield successfully blocks damage. Supports dynamic scaling: `BLOCK;BaseCost;DamageMultiplier`.
 -   `USE`: Drains stamina instantly on right-click.
@@ -241,7 +270,7 @@ Assign stamina costs to any item. Multiple cost types can be stacked on a single
 "minecraft:fishing_rod;USE;3.0"
 ```
 
-> A tag-based list is also available using the same format, with a tag ID instead of an item ID. Specific item entries always take priority over tag entries.
+> A tag based list is also available using the same format, with a tag ID instead of an item ID. Specific item entries always take priority over tag entries.
 
 ----------
 
@@ -261,8 +290,8 @@ Chain multiple effects onto a single item to create complex food and consumable 
 -   `INSTANT;Amount`: Instantly restores `Amount` stamina.
 -   `BONUS;Amount`: Grants `Amount` Bonus Stamina (gold bar). Consumed before normal stamina and decays over time.
 -   `POISON;Amount`: Applies a food poisoning penalty (purple bar) of `Amount`. Decays after `poisonDecayDelay` seconds.
--   `REGEN;Amount;Seconds`: Modifies regen speed for `Seconds`. Positive = faster, negative = slower. (`0.2` = +20%, `-0.3` = -30%.)
--   `PENALTY;Amount`: Grants _Resistance_ for `penaltyReliefDuration` seconds. Formula: `30% base + (Amount / 100)`. Caps at 80%.
+-   `REGEN;Amount;Seconds`: Modifies regen speed for `Seconds`. Positive = faster, negative = slower. (`0.2 = +20%`, `-0.3 = -30%.`)
+-   `PENALTY;Amount`: Grants _Resistance_ for `penaltyReliefDuration` seconds. Formula: **30% base + (Amount / 100)**. Caps at 80%.
 -   `CURE;Target;Amount`: Removes `Amount` from a specific penalty. Valid targets: `FATIGUE`, `HUNGER`, `POISON`, `WEIGHT`, `ALL`, or any custom key (e.g., `temperature` or `modid:effectid`).
 
 **Examples:**
@@ -286,13 +315,9 @@ Chain multiple effects onto a single item to create complex food and consumable 
 # Removes 50.0 from all active penalties and grants ~55% Resistance.
 "minecraft:golden_apple;CURE;ALL;50.0;PENALTY;25.0"
 ```
-
-
-
 ----------
 
 ### Exhaustion Penalties
-
 Define what happens when a player's stamina hits 0.
 
 -   `exhaustionCooldownDuration` _(Default: `60`)_: Ticks (3 seconds) the penalties persist after hitting 0.
@@ -302,12 +327,10 @@ Define what happens when a player's stamina hits 0.
 **Format:** `"AttributeName;Amount;Operation"`
 
 Operations: `0` = Add flat, `1` = Multiply base, `2` = Multiply total.
-
 Example: slow the player by 15%:
 
 ```
 "minecraft:generic.movement_speed;-0.15;2"
-
 ```
 
 ----------
@@ -379,11 +402,6 @@ The 8th argument (IconText) sets what appears on the bar. Type any character or 
 "EFFECT;hordes:infected;!*;0;80;10.0;8388736;🦠"
 ```
 
-#### Nested NBT Paths (you should read this incase it doesn't work, it is located at the bottom of universal buff)
-
-<br><br>
-
-
 ### Universal Buffs (NBT & Status Effects)
 
 Works identically to Universal Penalties, but grants Bonus Stamina instead of penalizing the player.
@@ -405,7 +423,7 @@ Works identically to Universal Penalties, but grants Bonus Stamina instead of pe
 
 Append `_MULTIPLIER` to any mode (e.g., `PASSIVE_OVER_MULTIPLIER`) to scale the effect based on how far past the threshold the player is.
 
-**LimitOrCooldown** is context-dependent: for PASSIVE/BOTH modes it sets the Bonus Stamina hardcap; for BURST modes it sets the cooldown in ticks before the burst can re-trigger.
+`LimitOrCooldown` is context dependent: for PASSIVE/BOTH modes it sets the Bonus Stamina hardcap; for BURST modes it sets the cooldown in ticks before the burst can re-trigger.
 
 **Examples:**
 
@@ -464,8 +482,7 @@ Define reusable attribute debuff templates that can be assigned to any mob. Modd
 
 **Format:** `"ProfileName;AttributeID=Multiplier,AttributeID=Multiplier..."`
 
-**Built-in examples:**
-
+**Examples:**
 ```
 "MeleeTired;minecraft:generic.movement_speed=-0.40,minecraft:generic.attack_damage=-0.4"
 "HeavyMelee;minecraft:generic.movement_speed=-0.60,minecraft:generic.attack_damage=-0.50"
@@ -474,7 +491,6 @@ Define reusable attribute debuff templates that can be assigned to any mob. Modd
 #### Custom Mob Stamina (Whitelist)
 
 Defines exactly which mobs participate in the stamina system. Mobs not listed here are completely unaffected.
-
 > **Note:** Boss entities are not guaranteed to function correctly with this system.
 
 **Format:** `"EntityID;MaxAttacks;ExhaustionTicks;ProfileName"`
@@ -486,6 +502,34 @@ Defines exactly which mobs participate in the stamina system. Mobs not listed he
 
 > Ranged mobs using bows or crossbows that have an attack damage reduction in their Exhaustion Profile will also suffer reduced arrow velocity while exhausted.
 
+### Custom Stamina Actions
+
+This system allows you to define specific triggers that consume or regenerate stamina. Each action follows a specific string format consisting of three main components.
+
+**Format:** `"Event_Type;Argument;Cost"`
+
+| Parameter | Description |
+| :--- | :--- |
+| **Event_Type** | The specific category of interaction or event that triggers the cost (e.g., `MOUNT`, `HURT`). |
+| **Argument** | Filters the event. Use a specific ID to target one object, or `ANY` to trigger the cost for all events in that category. |
+| **Cost**| The amount of stamina consumed. |
+
+#### Available Event Types & Arguments
+| Event Type | Argument | Description |
+| :--- | :--- | :---|
+| `MOUNT` | `entity_id` | Triggers when the player mounts an entity (e.g., `minecraft:horse`, `minecraft:boat`) |
+| `INTERACT_ENTITY` | `entity_id` | Triggers when right-clicking an entity (e.g., `minecraft:villager`, `minecraft:pig`). |
+| `HURT` | `damage_source` | Triggers when the player takes damage (e.g., `fall`, `onFire`, `mob`, `arrow`). |
+| `FISH` | `damage_source` | Triggers when the player successfully catches something with a fishing rod. |
+
+### Examples
+-   `"HURT;fall;10.0"` Losing 10 stamina when taking fall damage.
+-   `"MOUNT;minecraft:horse;25.0"` A one time cost of 25 stamina to mount a horse.
+-   `"FISH;ANY;-5.0"` Regenerating 5 stamina every time you catch a fish.
+-   `"INTERACT_ENTITY;ANY;2.0"` A small stamina drain for interacting with any mob.
+    
+> **Note:** Use `ANY` for the argument if you want the stamina cost to apply regardless of the specific entity or damage source type. Negative values regen stamina instead.
+
 ----------
 
 ### ParCool Compat
@@ -494,7 +538,7 @@ As long as any stamina remains (> 0), you can initiate a ParCool action: even if
 
 > Use a negative cost value to restore stamina during an action instead of draining it.
 
-`parCoolActionCosts`: The list defining stamina costs for specific parkour moves.
+- `parCoolActionCosts`: The list defining stamina costs for specific parkour moves.
 
 **Format:** `"ActionName;START;Cost;CONTINUE;Cost"`
 
@@ -512,7 +556,15 @@ As long as any stamina remains (> 0), you can initiate a ParCool action: even if
 
 ----------
 
-## Auto HUD System
+### Combat Roll Compat
+
+You can only use a roll when you have sufficient stamina to initiate one. Otherwise you can't.
+
+- `combatRollCost`: How much each roll costs.
+
+----------
+
+### Auto HUD System
 
 > All visual and HUD settings are in `config/peak_stamina/client.toml`. Disabled by default.
 
@@ -525,6 +577,58 @@ As long as any stamina remains (> 0), you can initiate a ParCool action: even if
 -   `autoHudLingerTime`: Ticks the bar stays visible after stamina stops changing.
 -   `autoHudThreshold`: Automatically shows the bar if stamina drops below this percentage.
 -   `autoHudShowOnPenalties`: Forces the bar to stay visible whenever any active penalty is present.
+
+### Custom Tooltips 
+
+> All visual and HUD settings are in `config/peak_stamina/client.toml`. 
+
+This system allows you to define which stamina related statistics appear on item tooltips in game.
+-   `enableTooltips` _(Default: `true`)_: Toggle to enable or disable stamina information on item tooltips.
+-   `advancedTooltipsOnly` _(Default: `false`)_: If true, stamina tooltips will only appear when F3+H (Advanced Tooltips) is active in game.
+
+**Format:** `"Content_Type;Placement;Label_Color;Value_Color"`
+
+| Parameter | Description |
+| :--- | :--- |
+| **Content_Type** | The specific stamina stat or effect to display (e.g., `WEIGHT`, `INSTANT_STAMINA`). |
+| **Placement** | Where the tooltip appears: `BOTTOM` (end of tooltip) or `BELOW_NAME` (immediately under the item name). |
+| **Label_Color** | The color of the stat name (e.g., "Weight:"). See color list below. |
+| **Value_Color** | The color of the numerical value or effect (e.g., "15.0"). See color list below. |
+
+#### Available Content Types
+
+-   `WEIGHT`: Displays the item's weight.
+-   `ATTACK_COST`: Shows stamina drain per successful swing.
+-   `MISSED_ATTACK_COST`: Shows stamina drain when swinging at air.
+-   `USE_COST`: Shows instant cost on right-click.
+-   `TICK_COST`: Shows continuous drain while holding/using.
+-   `BLOCK_COST`: Shows stamina drain when blocking with a shield.
+-   `INSTANT_STAMINA`: Displays how much stamina is restored upon consumption.
+-   `BONUS_STAMINA`: Displays the amount of gold "Bonus Stamina" granted.
+-   `REGEN_MODIFIER`: Shows the percentage boost or penalty to recovery speed.
+-   `CURES`: Lists which penalties (Fatigue, Poison, etc.) the item removes.
+> You can configure what will show in the tooltips for each of them as well.
+
+#### Color Palette
+
+You can use the following standard Minecraft color names for both labels and values:
+
+`BLACK`, `DARK_BLUE`, `DARK_GREEN`, `DARK_AQUA`, `DARK_RED`, `DARK_PURPLE`, `GOLD`, `GRAY`, `DARK_GRAY`, `BLUE`, `GREEN`, `AQUA`, `RED`, `LIGHT_PURPLE`, `YELLOW`, `WHITE`.
+
+#### Examples
+The order in which you list these entries determines the order they appear in your tooltips. 
+
+```
+customTooltips = [
+    "WEIGHT;BOTTOM;DARK_GRAY;WHITE",
+    "ATTACK_COST;BOTTOM;DARK_GRAY;WHITE",
+    "INSTANT_STAMINA;BOTTOM;DARK_GRAY;GREEN",
+    "BONUS_STAMINA;BOTTOM;DARK_GRAY;GOLD",
+    "CURES;BOTTOM;DARK_GRAY;WHITE"
+]
+```
+
+> **Note:** Tooltips will only appear on items that actually possess the corresponding stat or effect. For example, a `WEIGHT` tooltip won't show on an item with 0 weight unless explicitly configured.
 
 ----------
 
@@ -554,6 +658,8 @@ peak_stamina:jump_cost_multiplier
 peak_stamina:sprint_cost_multiplier
 peak_stamina:attack_cost_multiplier
 peak_stamina:missed_attack_cost_multiplier
+peak_stamina:shield_block_cost_multiplier
+peak_stamina:item_cost_multiplier
 peak_stamina:block_break_cost_multiplier
 peak_stamina:block_place_cost_multiplier
 peak_stamina:swim_cost_multiplier
@@ -572,6 +678,7 @@ peak_stamina:excess_conversion_multiplier
 -   `/stamina set <amount>`: Set your current stamina to a specific value.
 -   `/stamina attr <attribute> <value>`: Modify a personal stamina attribute.
 -   `/stamina debug`: Full debug readout of all stamina stats, penalties, and attribute multipliers.
+-   `/stamina reload`: Reloads all caches and config values.
 
 ----------
 
@@ -600,6 +707,4 @@ Minecraft configs use decimal color values. Take your hex color (e.g., `FF0000`)
 **Q: Do I need this mod on the server?** Yes.
 
 **Q: Does this work in multiplayer?** While not exhaustively tested across all versions, testing has not revealed any issues.
-
-----------
 
