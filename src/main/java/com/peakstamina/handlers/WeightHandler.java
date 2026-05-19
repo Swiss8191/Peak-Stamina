@@ -31,8 +31,6 @@ public class WeightHandler {
     private static final Map<Item, String> containerPathCache = new HashMap<>();
     private static final Map<Item, List<NbtWeightPath>> NBT_WEIGHT_PATHS_CACHE = new HashMap<>();
     public static final List<CustomWeightProvider> CUSTOM_PROVIDERS = new ArrayList<>();
-    private static final java.util.Map<Integer, Double> WEIGHT_CACHE = new java.util.HashMap<>();
-    private static final java.util.Map<Integer, Integer> COMPONENT_HASH_CACHE = new java.util.HashMap<>();
 
     @FunctionalInterface
     public interface CustomWeightProvider {
@@ -195,7 +193,7 @@ public class WeightHandler {
 
         double totalWeight = 0.0;
         boolean overridden = false;
-
+        
         if (itemWeightCache.containsKey(item)) {
             totalWeight += itemWeightCache.get(item);
             overridden = true;
@@ -213,17 +211,17 @@ public class WeightHandler {
 
         if (NBT_WEIGHT_PATHS_CACHE.containsKey(item)) {
             overridden = true;
-            CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
-            CompoundTag tag = customData != null ? customData.copyTag() : null;
-
+            net.minecraft.world.item.component.CustomData customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+            net.minecraft.nbt.CompoundTag tag = customData != null ? customData.copyTag() : null;
+            
             for (NbtWeightPath nbtPath : NBT_WEIGHT_PATHS_CACHE.get(item)) {
                 String extractedId = tag != null ? getStringFromNbtPath(tag, nbtPath.path) : null;
                 double addedWeight = 0.0;
 
                 if (extractedId != null) {
-                    ResourceLocation extractedLoc = ResourceLocation.tryParse(extractedId);
-                    Item extractedItem = extractedLoc != null ? BuiltInRegistries.ITEM.get(extractedLoc) : null;
-
+                    net.minecraft.resources.ResourceLocation extractedLoc = net.minecraft.resources.ResourceLocation.tryParse(extractedId);
+                    Item extractedItem = extractedLoc != null ? net.minecraft.core.registries.BuiltInRegistries.ITEM.get(extractedLoc) : null;
+                    
                     if (extractedItem != null && itemWeightCache.containsKey(extractedItem)) {
                         addedWeight = itemWeightCache.get(extractedItem);
                     } else {
@@ -234,24 +232,36 @@ public class WeightHandler {
                 }
 
                 totalWeight += addedWeight;
-
                 if (debugNbtPaths) {
-                    String regName = BuiltInRegistries.ITEM.getKey(item).toString();
+                    String regName = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).toString();
                     System.out.println("[PeakStamina NBT Debug] Base Item: " + regName +
-                            " | Path: " + Arrays.toString(nbtPath.path) +
+                            " | Path: " + java.util.Arrays.toString(nbtPath.path) +
                             " | Found ID: " + extractedId +
                             " | Weight Added: " + addedWeight);
                 }
             }
         }
 
+        double lightweightDiscount = 0.0;
+        int lightweightLevel = ServerStaminaHandler.getCustomEnchantLevel(stack, "peakstamina:lightweight");
+        if (lightweightLevel > 0) {
+            if (lightweightLevel == 1) lightweightDiscount = StaminaConfig.COMMON.lightweightLvl1.get();
+            else if (lightweightLevel == 2) lightweightDiscount = StaminaConfig.COMMON.lightweightLvl2.get();
+            else lightweightDiscount = StaminaConfig.COMMON.lightweightLvl3.get();
+        }
+        double weightMultiplier = Math.max(0.0, 1.0 - lightweightDiscount);
+
         if (overridden) {
+            totalWeight *= weightMultiplier;
             return totalWeight * count;
         }
 
         int maxStack = item.getDefaultMaxStackSize();
         if (maxStack <= 0) maxStack = 1;
         double singleWeight = baseHeuristic / (double) maxStack;
+        
+        singleWeight *= weightMultiplier;
+
         return singleWeight * count;
     }
 

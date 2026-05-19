@@ -19,6 +19,7 @@ public class StaminaLists {
     }
 
     public static class Lists {
+
         private static final List<String> DEFAULT_ITEM_COSTS = Arrays.asList(
                 "minecraft:bow;TICK;0.5",
                 "minecraft:shield;TICK;0.2;BLOCK;2.0;0.8",
@@ -395,36 +396,36 @@ public class StaminaLists {
                     " "
             ).defineList("customTagWeights", DEFAULT_TAG_WEIGHTS, obj -> obj instanceof String);
 
-                builder.push("Special NBT paths");
-                nbtWeightPaths = builder.comment(
-                        " ",
-                        " Advanced NBT Weight Extraction",
-                        " ",
-                        " WHEN TO USE THIS:",
-                        " Most items in Minecraft use a standard Item ID (e.g., 'minecraft:apple' or 'minecraft:iron_sword').",
-                        " For those, you do NOT need this list. Just put them directly into the Explicit Item Weights list.",
-                        " However, some complex mods (like TACZ) use a single base item (e.g., 'tacz:ammo') and store the ",
-                        " ACTUAL specific item ID (like 'tacz:9mm') hidden inside NBT folders.",
-                        " This list tells the weight system exactly where to look inside the NBT data to find that true ID.",
-                        " ",
-                        " WHERE TO PUT THE IDS:",
-                        " Once you define a path here, the weight system will get the hidden ID (e.g., 'tacz:9mm').",
-                        " You must then put that extracted ID into your 'Explicit Item Weights' list to assign it a weight.",
-                        " ",
-                        " Format: 'base_item_id ; nbt.path.to.id ; fallbackWeight ; applyFallbackIfMissing'",
-                        " ",
-                        " Examples:",
-                        "  'tacz:ammo;AmmoId;0.05;true'",
-                        "   (Looks inside 'tacz:ammo' for 'AmmoId'. If it finds an ID like 'tacz:9mm', it checks Explicit Weights for it.",
-                        "   If 'tacz:9mm' isn't configured, it adds 0.05 weight. If the AmmoId tag is missing entirely, it adds 0.05 because true.)",
-                        " ",
-                        "  'tacz:modern_kinetic_gun;AttachmentSCOPE.tag.AttachmentId;0.5;false'",
-                        "   (Digs through the NBT folders to check for a scope. If found, checks explicit weights, else adds 0.5.",
-                        "   If no scope is equipped (AttachmentSCOPE is empty), it adds 0.0 weight because false. If it was true it would add 0.5 weight regardless of if its empty or not.)",
-                        " ",
-                        " Note: This uses the same logic as universal penalties (the '.' behavior, for assistance refer to the wiki)"
-                ).defineList("nbtWeightPaths", DEFAULT_NBT_PATHS, obj -> obj instanceof String);
-                builder.pop();
+            builder.push("Special NBT paths");
+            nbtWeightPaths = builder.comment(
+                    " ",
+                    " Advanced NBT Weight Extraction",
+                    " ",
+                    " WHEN TO USE THIS:",
+                    " Most items in Minecraft use a standard Item ID (e.g., 'minecraft:apple' or 'minecraft:iron_sword').",
+                    " For those, you do NOT need this list. Just put them directly into the Explicit Item Weights list.",
+                    " However, some complex mods (like TACZ) use a single base item (e.g., 'tacz:ammo') and store the ",
+                    " ACTUAL specific item ID (like 'tacz:9mm') hidden inside NBT folders.",
+                    " This list tells the weight system exactly where to look inside the NBT data to find that true ID.",
+                    " ",
+                    " WHERE TO PUT THE IDS:",
+                    " Once you define a path here, the weight system will get the hidden ID (e.g., 'tacz:9mm').",
+                    " You must then put that extracted ID into your 'Explicit Item Weights' list to assign it a weight.",
+                    " ",
+                    " Format: 'base_item_id ; nbt.path.to.id ; fallbackWeight ; applyFallbackIfMissing'",
+                    " ",
+                    " Examples:",
+                    "  'tacz:ammo;AmmoId;0.05;true'",
+                    "   (Looks inside 'tacz:ammo' for 'AmmoId'. If it finds an ID like 'tacz:9mm', it checks Explicit Weights for it.",
+                    "   If 'tacz:9mm' isn't configured, it adds 0.05 weight. If the AmmoId tag is missing entirely, it adds 0.05 because true.)",
+                    " ",
+                    "  'tacz:modern_kinetic_gun;AttachmentSCOPE.tag.AttachmentId;0.5;false'",
+                    "   (Digs through the NBT folders to check for a scope. If found, checks explicit weights, else adds 0.5.",
+                    "   If no scope is equipped (AttachmentSCOPE is empty), it adds 0.0 weight because false. If it was true it would add 0.5 weight regardless of if its empty or not.)",
+                    " ",
+                    " Note: This uses the same logic as universal penalties (the '.' behavior, for assistance refer to the wiki)"
+            ).defineList("nbtWeightPaths", DEFAULT_NBT_PATHS, obj -> obj instanceof String);
+            builder.pop();
             builder.pop();
         }
 
@@ -482,12 +483,13 @@ public class StaminaLists {
                     "  \"EFFECT;minecraft:poison;*;0;50;5.0;4488448;☣\"",
                     "    -> Every poison level adds 5 penalty. Caps at 50.",
                     " ",
-                    " --- ADVANCED NBT PATHS (Nested Tags & ForgeCaps) ---",
-                    " Sometimes even with the correct path it may not work. In this scenario try adding 'ForgeCaps.' to the start.",
+                    " --- ADVANCED NBT PATHS (Nested Tags & NeoForge Attachments) ---",
+                    " Since NeoForge uses Data Attachments instead of Capabilities, custom mod data is usually stored",
+                    " under the 'neoforge:attachments' root tag. If a simple path doesn't work, try adding that to the start.",
                     " ",
                     " Examples of using '.' to look inside tags:",
-                    "  \"ForgeCaps.legendarysurvivaloverhaul:thirst.hydrationLevel\"",
-                    "    -> Open ForgeCaps ➡ open legendarysurvivaloverhaul:thirst ➡ grab hydrationLevel.",
+                    "  \"neoforge:attachments.legendarysurvivaloverhaul:thirst.hydrationLevel\"",
+                    "    -> Open neoforge:attachments ➡ open legendarysurvivaloverhaul:thirst ➡ grab hydrationLevel.",
                     " "
             ).defineList("universalPenalties", DEFAULT_UNIVERSAL_PENALTIES, obj -> obj instanceof String);
             builder.pop();

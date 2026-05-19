@@ -50,6 +50,8 @@ public record MissedAttackPayload() implements CustomPacketPayload {
                     cost *= (float) weightMult;
                 }
 
+                cost = ServerStaminaHandler.applyTirelessDiscount(player.getMainHandItem(), cost);
+
                 if (cost > 0) {
                     StaminaData cap = player.getData(StaminaAttachments.STAMINA);
                     

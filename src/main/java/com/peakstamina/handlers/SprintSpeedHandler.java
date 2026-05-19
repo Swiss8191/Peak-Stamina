@@ -31,8 +31,8 @@ public class SprintSpeedHandler {
             }
         }
 
-        // 1.20.1 Slow climb speed logic restored
-        if (player.onClimbable() && player.isShiftKeyDown()) {
+        // Slow climb speed logic
+        if (player.onClimbable() && player.isShiftKeyDown() && StaminaConfig.COMMON.enableSlowClimb.get()) {
             var climbAttrInstance = player.getAttribute(net.minecraft.core.registries.BuiltInRegistries.ATTRIBUTE.wrapAsHolder(StaminaAttributes.SLOW_CLIMB_SPEED.get()));
             double baseClimbMult = StaminaConfig.COMMON.slowClimbSpeed.get();
             double attrClimbMult = climbAttrInstance != null ? climbAttrInstance.getValue() : 1.0;

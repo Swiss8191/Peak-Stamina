@@ -714,4 +714,49 @@ public class ClientStaminaEvents {
         RenderSystem.disableBlend();
         gfx.disableScissor();
     }
+
+    @SubscribeEvent
+    public static void onScreenRender(net.neoforged.neoforge.client.event.ScreenEvent.Render.Post event) {
+        if (!StaminaConfig.CLIENT.enableWeightHUD.get()) {
+            return; 
+        }
+
+        if (event.getScreen() instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen invScreen) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                StaminaData cap = mc.player.getData(StaminaAttachments.STAMINA);
+                double rawWeight = com.peakstamina.handlers.WeightHandler.calculateTotalWeight(mc.player);
+                double weightMult = 1.0;
+                AttributeInstance wMultAttr = mc.player.getAttribute(net.minecraft.core.registries.BuiltInRegistries.ATTRIBUTE.wrapAsHolder(com.peakstamina.registry.StaminaAttributes.WEIGHT_CALC_MULTIPLIER.get()));
+                if (wMultAttr != null) weightMult = wMultAttr.getValue();
+                double effectiveWeight = rawWeight * weightMult;
+
+                double threshold = StaminaConfig.COMMON.weightPenaltyThreshold.get();
+                double limit = StaminaConfig.COMMON.weightPenaltyLimit.get();
+                
+                AttributeInstance limitAttr = mc.player.getAttribute(net.minecraft.core.registries.BuiltInRegistries.ATTRIBUTE.wrapAsHolder(com.peakstamina.registry.StaminaAttributes.WEIGHT_LIMIT.get()));
+                if (limitAttr != null) {
+                    double bonus = limitAttr.getValue() / 2.0;
+                    threshold += bonus;
+                    limit += (bonus * 2);
+                }
+
+                String text = net.minecraft.network.chat.Component.translatable("gui.peakstamina.weight_readout", 
+                    String.format("%.1f", effectiveWeight), 
+                    String.format("%.1f", limit)).getString();
+                    
+                int color = effectiveWeight >= limit ? 0xFF5555 : (effectiveWeight >= threshold ? 0xFFAA00 : 0xFFFFFF);
+
+                int x = invScreen.getGuiLeft() + 88 + StaminaConfig.CLIENT.weightHudX.get();
+                int y = invScreen.getGuiTop() + 83 + StaminaConfig.CLIENT.weightHudY.get();
+
+                event.getGuiGraphics().pose().pushPose();
+                event.getGuiGraphics().pose().translate(x, y, 0);
+                float scale = 0.6f; 
+                event.getGuiGraphics().pose().scale(scale, scale, 1.0f);
+                event.getGuiGraphics().drawString(mc.font, text, 0, 0, color, true);
+                event.getGuiGraphics().pose().popPose();
+            }
+        }
+    }
 }

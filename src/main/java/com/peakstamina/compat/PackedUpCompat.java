@@ -21,15 +21,12 @@ public class PackedUpCompat {
     @SuppressWarnings("unchecked")
     public static void init() {
         try {
-            // 1. Get the BackpackStorageManager.getInventory(int) method
             Class<?> managerClass = Class.forName("com.supermartijn642.packedup.storage.BackpackStorageManager");
             getInventoryMethod = managerClass.getMethod("getInventory", int.class);
 
-            // 2. Get the BackpackInventory.getStacks() method
             Class<?> inventoryClass = Class.forName("com.supermartijn642.packedup.storage.BackpackInventory");
             getStacksMethod = inventoryClass.getMethod("getStacks");
 
-            // 3. Get the 1.21.1 DataComponentType for the backpack's ID
             Class<?> backpackItemClass = Class.forName("com.supermartijn642.packedup.BackpackItem");
             java.lang.reflect.Field invIdField = backpackItemClass.getField("INVENTORY_ID");
             
@@ -63,7 +60,6 @@ public class PackedUpCompat {
 
                         try {
                             if (getInventoryMethod != null && getStacksMethod != null) {
-                                // Fetch the remote BackpackInventory object
                                 Object inventoryObj = getInventoryMethod.invoke(null, id);
                                 
                                 if (inventoryObj != null) {

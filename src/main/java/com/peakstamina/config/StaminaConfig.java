@@ -1,7 +1,9 @@
 package com.peakstamina.config;
 
-import org.apache.commons.lang3.tuple.Pair;
 import java.util.List;
+
+import org.apache.commons.lang3.tuple.Pair;
+
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class StaminaConfig {
@@ -12,10 +14,21 @@ public class StaminaConfig {
     public static final Client CLIENT;
     public static final ModConfigSpec CLIENT_SPEC;
 
-    public enum SleepMode { DEFAULT, HARDCORE }
-    public enum AutoHudMode { FADE, SLIDE, BOTH }
-    public enum AutoHudSlideDir { UP, DOWN, LEFT, RIGHT }
-    public enum AutoHudEasing { LINEAR, SMOOTHSTEP, EASE_OUT_SINE, EASE_OUT_EXPO }
+    public enum SleepMode {
+        DEFAULT, HARDCORE
+    }
+
+    public enum AutoHudMode {
+        FADE, SLIDE, BOTH
+    }
+
+    public enum AutoHudSlideDir {
+        UP, DOWN, LEFT, RIGHT
+    }
+
+    public enum AutoHudEasing {
+        LINEAR, SMOOTHSTEP, EASE_OUT_SINE, EASE_OUT_EXPO
+    }
 
     static {
         final Pair<Common, ModConfigSpec> commonSpecPair = new ModConfigSpec.Builder().configure(Common::new);
@@ -28,10 +41,12 @@ public class StaminaConfig {
     }
 
     public static class Common {
+
         public ModConfigSpec.BooleanValue enableStamina;
         public ModConfigSpec.BooleanValue disableInCreative;
         public ModConfigSpec.BooleanValue disableInSpectator;
         public ModConfigSpec.DoubleValue initialMaxStamina;
+        public ModConfigSpec.BooleanValue enableSlowClimb;
         public ModConfigSpec.DoubleValue slowClimbSpeed;
 
         public ModConfigSpec.DoubleValue depletionSprint;
@@ -61,6 +76,13 @@ public class StaminaConfig {
         public ModConfigSpec.DoubleValue recoveryClimbMult;
         public ModConfigSpec.DoubleValue recoveryWaterMult;
         public ModConfigSpec.IntValue recoveryDelay;
+
+        public ModConfigSpec.DoubleValue lightweightLvl1;
+        public ModConfigSpec.DoubleValue lightweightLvl2;
+        public ModConfigSpec.DoubleValue lightweightLvl3;
+        public ModConfigSpec.DoubleValue tirelessLvl1;
+        public ModConfigSpec.DoubleValue tirelessLvl2;
+        public ModConfigSpec.DoubleValue tirelessLvl3;
 
         public ModConfigSpec.DoubleValue minMaxStamina;
         public ModConfigSpec.DoubleValue fatigueThreshold;
@@ -111,6 +133,7 @@ public class StaminaConfig {
             initRecovery(builder);
             initDepletion(builder);
             initCombat(builder);
+            initEnchant(builder);
             initFatigueAndLimits(builder);
             initBonusStamina(builder);
             initElytra(builder);
@@ -125,6 +148,7 @@ public class StaminaConfig {
             disableInCreative = builder.comment(" If true, players in Creative mode will not consume or use the stamina system.").define("disableInCreative", true);
             disableInSpectator = builder.comment(" If true, players in Spectator mode will not consume or use the stamina system.").define("disableInSpectator", true);
             initialMaxStamina = builder.comment(" Initial Max Stamina value for players.").defineInRange("initialMaxStamina", 100.0, 1.0, 10000.0);
+            enableSlowClimb = builder.comment(" Enable the slow climb mechanic.").define("enableSlowClimb", true);
             slowClimbSpeed = builder.comment(" Base movement speed multiplier when slow climbing (sneaking on ladders/vines).").defineInRange("slowClimbSpeed", 0.4, 0.0, 10.0);
             builder.pop();
         }
@@ -166,6 +190,17 @@ public class StaminaConfig {
             missedAttackWeightScaleFactor = builder.comment(" How intensely weight affects the missed attack cost.").defineInRange("missedAttackWeightScaleFactor", 1.0, 0.0, 10.0);
             missedAttackWeightMinMultiplier = builder.comment(" The minimum possible stamina cost multiplier for missed attacks.").defineInRange("missedAttackWeightMinMultiplier", 0.4, 0.0, 1.0);
             missedAttackWeightMaxMultiplier = builder.comment(" The maximum possible stamina cost multiplier for missed attacks.").defineInRange("missedAttackWeightMaxMultiplier", 5.0, 1.0, 100.0);
+            builder.pop();
+        }
+
+        private void initEnchant(ModConfigSpec.Builder builder) {
+            builder.push("Enchantments");
+            lightweightLvl1 = builder.comment("Weight reduction multiplier for Lightweight I (e.g. 0.25 = 25% reduction)").defineInRange("lightweightLvl1", 0.25, 0.0, 1.0);
+            lightweightLvl2 = builder.comment("Weight reduction multiplier for Lightweight II").defineInRange("lightweightLvl2", 0.5, 0.0, 1.0);
+            lightweightLvl3 = builder.comment("Weight reduction multiplier for Lightweight III").defineInRange("lightweightLvl3", 0.75, 0.0, 1.0);
+            tirelessLvl1 = builder.comment("Stamina cost reduction for Tireless I (e.g. 0.20 = 20% reduction)").defineInRange("tirelessLvl1", 0.20, 0.0, 1.0);
+            tirelessLvl2 = builder.comment("Stamina cost reduction for Tireless II").defineInRange("tirelessLvl2", 0.40, 0.0, 1.0);
+            tirelessLvl3 = builder.comment("Stamina cost reduction for Tireless III").defineInRange("tirelessLvl3", 0.60, 0.0, 1.0);
             builder.pop();
         }
 
@@ -272,7 +307,9 @@ public class StaminaConfig {
 
     public static class Client {
 
-        public enum HudStyle { BAR, ICON }
+        public enum HudStyle {
+            BAR, ICON
+        }
         public final ModConfigSpec.EnumValue<HudStyle> hudStyle;
 
         public final ModConfigSpec.IntValue barXOffset;
@@ -295,6 +332,10 @@ public class StaminaConfig {
         public final ModConfigSpec.IntValue colorBonusHighlight;
         public final ModConfigSpec.IntValue bonusHighlightAlpha;
         public final ModConfigSpec.IntValue colorPenaltyWeight;
+
+        public final ModConfigSpec.BooleanValue enableWeightHUD;
+        public final ModConfigSpec.IntValue weightHudX;
+        public final ModConfigSpec.IntValue weightHudY;
 
         public final ModConfigSpec.BooleanValue autoHudEnable;
         public final ModConfigSpec.EnumValue<AutoHudMode> autoHudMode;
@@ -353,6 +394,21 @@ public class StaminaConfig {
             bonusHighlightAlpha = builder.comment(" Opacity of the highlight sheen (0-255). 0 = Invisible, 255 = Solid. Default: 128 (Semi-transparent)").defineInRange("bonusHighlightAlpha", 128, 0, 255);
             builder.pop();
 
+            builder.push("Encumbrance UI");
+            
+            enableWeightHUD = builder.comment("Enable the dynamic Weight/Encumbrance text on the inventory screen.")
+                    .define("enableWeightHUD", true);
+                    
+            weightHudX = builder.comment("X position offset for the Weight HUD (0 is the center of the screen)")
+                    .defineInRange("weightHudX", -51, -4000, 4000);
+                    
+            weightHudY = builder.comment("Y position offset for the Weight HUD (0 is the center of the screen)")
+                    .defineInRange("weightHudY", -75, -4000, 4000);
+                    
+            builder.pop();
+
+            builder.push("HUD Layout");
+
             builder.push("Auto Hud");
             autoHudEnable = builder.comment(" Enable hiding the stamina bar when full/not in use.").define("autoHudEnable", false);
             autoHudMode = builder.comment(" Animation type. FADE, SLIDE, or BOTH.").defineEnum("autoHudMode", AutoHudMode.FADE);
@@ -371,21 +427,21 @@ public class StaminaConfig {
             autoHudThreshold = builder.comment(" Show the bar if stamina drops below this percentage (0.35 = 35%)").defineInRange("autoHudThreshold", 0.35, 0.0, 1.0);
             autoHudShowOnPenalties = builder.comment(" Force the bar to stay visible if you have penalties (hunger, poison, fatigue, weight).").define("autoHudShowOnPenalties", true);
             builder.pop();
-            
+
             builder.push("Tooltips");
             enableTooltips = builder.define("enableTooltips", true);
             advancedTooltipsOnly = builder.define("advancedTooltipsOnly", false);
             customTooltips = builder.defineList("customTooltips", java.util.Arrays.asList(
-                "WEIGHT;BELOW_NAME;DARK_GRAY;WHITE",
-                "ATTACK_COST;BOTTOM;DARK_GRAY;RED",
-                "USE_COST;BOTTOM;DARK_GRAY;RED",
-                "TICK_COST;BOTTOM;DARK_GRAY;RED",
-                "BLOCK_COST;BOTTOM;DARK_GRAY;RED",
-                "MISSED_ATTACK_COST;BOTTOM;DARK_GRAY;RED",
-                "INSTANT_STAMINA;BOTTOM;DARK_GRAY;GREEN",
-                "BONUS_STAMINA;BOTTOM;DARK_GRAY;GOLD",
-                "REGEN_MODIFIER;BOTTOM;DARK_GRAY;AQUA",
-                "CURES;BOTTOM;DARK_GRAY;LIGHT_PURPLE"
+                    "WEIGHT;BELOW_NAME;DARK_GRAY;WHITE",
+                    "ATTACK_COST;BELOW_NAME;DARK_GRAY;RED",
+                    "USE_COST;BELOW_NAME;DARK_GRAY;RED",
+                    "TICK_COST;BELOW_NAME;DARK_GRAY;RED",
+                    "BLOCK_COST;BELOW_NAME;DARK_GRAY;RED",
+                    "MISSED_ATTACK_COST;BELOW_NAME;DARK_GRAY;RED",
+                    "INSTANT_STAMINA;BELOW_NAME;DARK_GRAY;GREEN",
+                    "BONUS_STAMINA;BELOW_NAME;DARK_GRAY;GOLD",
+                    "REGEN_MODIFIER;BELOW_NAME;DARK_GRAY;AQUA",
+                    "CURES;BELOW_NAME;DARK_GRAY;LIGHT_PURPLE"
             ), obj -> obj instanceof String);
             labelWeight = builder.define("labelWeight", "Weight: ");
             labelAttackCost = builder.define("labelAttackCost", "Attack Stamina: ");

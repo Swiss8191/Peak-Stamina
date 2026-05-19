@@ -67,8 +67,6 @@ public class StaminaCommand {
             .then(Commands.literal("get")
                 .executes(context -> {
                     ServerPlayer player = context.getSource().getPlayerOrException();
-                    
-                    // FIX: Retrieve data natively
                     StaminaData cap = player.getData(StaminaAttachments.STAMINA);
                     
                     context.getSource().sendSuccess(() -> Component.literal(

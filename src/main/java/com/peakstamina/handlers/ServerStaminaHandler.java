@@ -60,7 +60,6 @@ public class ServerStaminaHandler {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    // FIX: Attribute Modifiers use ResourceLocations in 1.21.1 instead of UUIDs
     private static final ResourceLocation EXHAUSTED_SPEED_ID = ResourceLocation.fromNamespaceAndPath(PeakStaminaMod.MODID, "exhausted_speed");
 
     private static List<UniversalPenaltyData> cachedUniversalPenalties = null;
@@ -359,7 +358,6 @@ public class ServerStaminaHandler {
             cap.weightPenalty = newWeightPenalty;
         }
 
-        // --- Active Buffs / Attribute Modifiers ---
         if (!cap.activeBuffs.isEmpty()) {
             Iterator<StaminaData.BuffInstance> it = cap.activeBuffs.iterator();
             while (it.hasNext()) {
@@ -375,7 +373,6 @@ public class ServerStaminaHandler {
             }
         }
 
-        // --- Bonus Stamina Decay ---
         if (cap.bonusStamina > 0) {
             if (cap.bonusStaminaDecayTimer > 0) {
                 cap.bonusStaminaDecayTimer--;
@@ -427,7 +424,6 @@ public class ServerStaminaHandler {
             }
         }
 
-        // --- Poison Penalty ---
         if (cap.poisonPenalty > 0) {
             if (cap.poisonTimer > 0) {
                 cap.poisonTimer--;
@@ -437,7 +433,6 @@ public class ServerStaminaHandler {
             }
         }
 
-        // --- Hunger Penalty ---
         float targetHungerPenalty = 0.0f;
         float maxHungerPen = StaminaConfig.COMMON.maxHungerPenalty.get().floatValue();
         int foodLevel = player.getFoodData().getFoodLevel();
@@ -468,7 +463,6 @@ public class ServerStaminaHandler {
             }
         }
 
-        // --- Universal Penalties ---
         if (cap.penaltyValues == null || cap.penaltyValues.length != cachedUniversalPenalties.size()) {
             float[] newArray = new float[cachedUniversalPenalties.size()];
             if (cap.penaltyValues != null) {
@@ -582,7 +576,6 @@ public class ServerStaminaHandler {
             }
         }
 
-        // --- Fatigue Timer & Exertion Penalty ---
         float fatigueThresh = StaminaConfig.COMMON.fatigueThreshold.get().floatValue();
         if (cap.stamina <= (baseAttr * fatigueThresh)) {
             cap.fatigueTimer++;
@@ -636,7 +629,6 @@ public class ServerStaminaHandler {
             cap.bonusStamina = maxBonus;
         }
 
-        // --- Universal Buffs ---
         for (int i = 0; i < cachedUniversalBuffs.size(); i++) {
             UniversalBuffData data = cachedUniversalBuffs.get(i);
             boolean isPassive = data.actionMode.startsWith("PASSIVE");
@@ -738,7 +730,6 @@ public class ServerStaminaHandler {
             }
         }
 
-        // --- Movement Depletion ---
         boolean isConsuming = false;
         float swimCost = StaminaConfig.COMMON.depletionSwim.get().floatValue();
         float climbCost = StaminaConfig.COMMON.depletionClimb.get().floatValue();
@@ -1122,6 +1113,7 @@ public class ServerStaminaHandler {
             attackCost *= (float) weightMult;
         }
 
+        attackCost = applyTirelessDiscount(player.getMainHandItem(), attackCost);
         double attackMult = getAttributeValue(player, StaminaAttributes.ATTACK_COST_MULTIPLIER, 1.0);
         double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
 
@@ -1176,17 +1168,19 @@ public class ServerStaminaHandler {
         }
 
         float breakCost = StaminaConfig.COMMON.depletionBlockBreak.get().floatValue();
+        breakCost = applyTirelessDiscount(player.getMainHandItem(), breakCost);
         double breakMult = getAttributeValue(player, StaminaAttributes.BLOCK_BREAK_COST_MULTIPLIER, 1.0);
         double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
 
         if (breakCost != 0) {
+            final float finalBreakCost = breakCost;
             StaminaData cap = player.getData(StaminaAttachments.STAMINA);
             double finalCost;
-            if (breakCost > 0) {
+            if (finalBreakCost > 0) {
                 double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE, 1.0);
-                finalCost = breakCost * usageMult * breakMult;
+                finalCost = finalBreakCost * usageMult * breakMult;
             } else {
-                finalCost = breakCost * actionRecoveryMult;
+                finalCost = finalBreakCost * actionRecoveryMult;
             }
 
             if (finalCost > 0) {
@@ -1202,7 +1196,7 @@ public class ServerStaminaHandler {
                 cap.stamina = cap.maxStamina;
             }
 
-            if (breakCost > 0) {
+            if (finalBreakCost > 0) {
                 cap.staminaRegenDelay = getRecoveryDelay(player);
             }
             sync((ServerPlayer) player, cap);
@@ -1226,7 +1220,7 @@ public class ServerStaminaHandler {
         }
 
         ItemStack stack = event.getItemStack();
-        float cost = getConfiguredItemCost(stack.getItem(), "USE_ON_BLOCK");
+        float cost = applyTirelessDiscount(stack, getConfiguredItemCost(stack.getItem(), "USE_ON_BLOCK"));
 
         if (cost > 0) {
             boolean isValidAction = false;
@@ -1358,7 +1352,7 @@ public class ServerStaminaHandler {
             return;
         }
 
-        float cost = getConfiguredItemCost(event.getItem().getItem(), "TICK");
+        float cost = applyTirelessDiscount(event.getItem(), getConfiguredItemCost(event.getItem().getItem(), "TICK"));
         if (cost != 0) {
             StaminaData cap = player.getData(StaminaAttachments.STAMINA);
             double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
@@ -1430,18 +1424,21 @@ public class ServerStaminaHandler {
 
         float damage = event.getBlockedDamage();
         float cost = baseCost + (damage * multiplier);
+        ItemStack shieldStack = player.getUseItem().getItem() == usedItem ? player.getUseItem() : (player.getMainHandItem().getItem() == usedItem ? player.getMainHandItem() : player.getOffhandItem());
+        cost = applyTirelessDiscount(shieldStack, cost);
 
         if (cost != 0) {
+            final float finalShieldCost = cost;
             StaminaData cap = player.getData(StaminaAttachments.STAMINA);
             double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
             double blockMult = getAttributeValue(player, StaminaAttributes.SHIELD_BLOCK_COST_MULTIPLIER, 1.0);
             double finalCost;
 
-            if (cost > 0) {
+            if (finalShieldCost > 0) {
                 double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE, 1.0);
-                finalCost = cost * usageMult * blockMult;
+                finalCost = finalShieldCost * usageMult * blockMult;
             } else {
-                finalCost = cost * actionRecoveryMult;
+                finalCost = finalShieldCost * actionRecoveryMult;
             }
 
             if (finalCost > 0) {
@@ -1457,7 +1454,7 @@ public class ServerStaminaHandler {
                 cap.stamina = 0;
             }
 
-            if (cost > 0) {
+            if (finalShieldCost > 0) {
                 cap.staminaRegenDelay = getRecoveryDelay(player);
                 if (cap.stamina <= 0) {
                     player.stopUsingItem();
@@ -1492,8 +1489,8 @@ public class ServerStaminaHandler {
             return;
         }
 
-        float useCost = getConfiguredItemCost(item, "USE");
-        float tickCost = getConfiguredItemCost(item, "TICK");
+        float useCost = applyTirelessDiscount(event.getItemStack(), getConfiguredItemCost(item, "USE"));
+        float tickCost = applyTirelessDiscount(event.getItemStack(), getConfiguredItemCost(item, "TICK"));
 
         if (useCost > 0 || tickCost > 0) {
             StaminaData cap = player.getData(StaminaAttachments.STAMINA);
@@ -1826,5 +1823,31 @@ public class ServerStaminaHandler {
 
     public static ConsumableData getConsumableData(Item item) {
         return CONSUMABLE_CACHE.get(item);
+    }
+
+    public static int getCustomEnchantLevel(ItemStack stack, String enchantName) {
+        net.minecraft.world.item.enchantment.ItemEnchantments enchants = stack.getOrDefault(net.minecraft.core.component.DataComponents.ENCHANTMENTS, net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
+        for (var entry : enchants.entrySet()) {
+            if (entry.getKey().unwrapKey().isPresent() && entry.getKey().unwrapKey().get().location().toString().equals(enchantName)) {
+                return entry.getIntValue();
+            }
+        }
+        return 0;
+    }
+
+    public static float applyTirelessDiscount(ItemStack stack, float originalCost) {
+        if (stack.isEmpty() || originalCost <= 0) return originalCost;
+        
+        int tirelessLevel = getCustomEnchantLevel(stack, "peakstamina:tireless");
+        if (tirelessLevel > 0) {
+            double discount = 0.0;
+            if (tirelessLevel == 1) discount = StaminaConfig.COMMON.tirelessLvl1.get();
+            else if (tirelessLevel == 2) discount = StaminaConfig.COMMON.tirelessLvl2.get();
+            else discount = StaminaConfig.COMMON.tirelessLvl3.get();
+            
+            float multiplier = 1.0f - (float) discount;
+            return originalCost * Math.max(0.0f, multiplier); 
+        }
+        return originalCost;
     }
 }
