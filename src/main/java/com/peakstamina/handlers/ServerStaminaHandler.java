@@ -34,6 +34,8 @@ import org.slf4j.Logger;
 import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.living.ShieldBlockEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.level.BlockEvent;
+
 import com.peakstamina.handlers.WeightHandler;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 
@@ -306,7 +308,7 @@ public class ServerStaminaHandler {
                 }
             }
 
-            if (player.onClimbable() && player.isShiftKeyDown()) {
+            if (player.onClimbable() && player.isShiftKeyDown() && StaminaConfig.COMMON.enableSlowClimb.get()) {
                 double speedMult = StaminaConfig.COMMON.slowClimbSpeed.get();
                 AttributeInstance climbAttr = player.getAttribute(StaminaAttributes.SLOW_CLIMB_SPEED.get());
                 if (climbAttr != null) {
@@ -1169,6 +1171,8 @@ public class ServerStaminaHandler {
                 weightMult = Math.max(minMult, Math.min(maxMult, weightMult)); 
                 attackCost *= (float) weightMult;
             }
+
+            attackCost = applyTirelessDiscount(player.getMainHandItem(), attackCost);
             
             double attackMult = getAttributeValue(player, StaminaAttributes.ATTACK_COST_MULTIPLIER.get(), 1.0);
             double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
@@ -1213,33 +1217,41 @@ public class ServerStaminaHandler {
     }
 
     @SubscribeEvent
-    public static void onBlockBroken(net.minecraftforge.event.level.BlockEvent.BreakEvent event) {
+    public static void onBlockBroken(BlockEvent.BreakEvent event) {
         if (!StaminaConfig.COMMON.enableStamina.get()) {
             return;
         }
-        if (!event.getPlayer().level().isClientSide) {
-            Player player = event.getPlayer();
-            if (player.isCreative() && StaminaConfig.COMMON.disableInCreative.get()) {
-                return;
-            }
-            if (player.isSpectator() && StaminaConfig.COMMON.disableInSpectator.get()) {
-                return;
-            }
+        Player player = event.getPlayer();
+        if (player.isCreative() && StaminaConfig.COMMON.disableInCreative.get()) {
+            return;
+        }
+        if (player.isSpectator() && StaminaConfig.COMMON.disableInSpectator.get()) {
+            return;
+        }
+        if (hasInfiniteStamina(player)) {
+            return;
+        }
 
+        if (!player.level().isClientSide) {
             float breakCost = StaminaConfig.COMMON.depletionBlockBreak.get().floatValue();
+            
+            // Apply Tireless Discount
+            breakCost = applyTirelessDiscount(player.getMainHandItem(), breakCost);
+            
             double breakMult = getAttributeValue(player, StaminaAttributes.BLOCK_BREAK_COST_MULTIPLIER.get(), 1.0);
-            double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
+
             if (breakCost != 0) {
+                final float finalBreakCost = breakCost;
+                
                 player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
-                    if (hasInfiniteStamina(player)) {
-                        return;
-                    }
+                    double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
+                    double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
+
                     double finalCost;
-                    if (breakCost > 0) {
-                        double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
-                        finalCost = breakCost * usageMult * breakMult;
+                    if (finalBreakCost > 0) {
+                        finalCost = finalBreakCost * usageMult * breakMult;
                     } else {
-                        finalCost = breakCost * actionRecoveryMult;
+                        finalCost = finalBreakCost * actionRecoveryMult;
                     }
 
                     if (finalCost > 0) {
@@ -1255,7 +1267,7 @@ public class ServerStaminaHandler {
                         cap.stamina = cap.maxStamina;
                     }
 
-                    if (breakCost > 0) {
+                    if (finalBreakCost > 0) {
                         cap.staminaRegenDelay = getRecoveryDelay(player);
                     }
 
@@ -1283,7 +1295,8 @@ public class ServerStaminaHandler {
         }
 
         net.minecraft.world.item.ItemStack stack = event.getItemStack();
-        float cost = getConfiguredItemCost(stack.getItem(), "USE_ON_BLOCK");
+        float cost = applyTirelessDiscount(stack, getConfiguredItemCost(stack.getItem(), "USE_ON_BLOCK"));
+
         if (cost > 0) {
 
             boolean isValidAction = false;
@@ -1422,7 +1435,8 @@ public class ServerStaminaHandler {
             return;
         }
 
-        float cost = getConfiguredItemCost(event.getItem().getItem(), "TICK");
+        float cost = applyTirelessDiscount(event.getItem(), getConfiguredItemCost(event.getItem().getItem(), "TICK"));
+
         if (cost != 0) {
             player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
                 double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
@@ -1497,44 +1511,56 @@ public class ServerStaminaHandler {
         float damage = event.getBlockedDamage();
         float cost = baseCost + (damage * multiplier);
         
+        ItemStack shieldStack = player.getUseItem().getItem() == usedItem ? player.getUseItem() : (player.getMainHandItem().getItem() == usedItem ? player.getMainHandItem() : player.getOffhandItem());
+        
+        // Apply Tireless Discount
+        cost = applyTirelessDiscount(shieldStack, cost);
+
         if (cost != 0) {
+            final float finalShieldCost = cost;
+            
             player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
+                double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
                 double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
+
                 double blockMult = getAttributeValue(player, StaminaAttributes.SHIELD_BLOCK_COST_MULTIPLIER.get(), 1.0);
-                double finalCost;
 
-                if (cost > 0) {
-                    double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
-                    finalCost = cost * usageMult * blockMult;
+                double finalCostCalc;
+                if (finalShieldCost > 0) {
+                    finalCostCalc = finalShieldCost * usageMult * blockMult;
                 } else {
-                    finalCost = cost * actionRecoveryMult;
+                    finalCostCalc = finalShieldCost * actionRecoveryMult;
                 }
 
-                if (finalCost > 0) {
-                    consumeStamina(cap, (float) finalCost);
+                if (finalCostCalc > 0) {
+                    consumeStamina(cap, (float) finalCostCalc);
                 } else {
-                    cap.stamina -= (float) finalCost;
+                    cap.stamina -= (float) finalCostCalc;
                 }
 
-                if (cap.stamina > cap.maxStamina) {
-                    cap.stamina = cap.maxStamina;
-                }
                 if (cap.stamina < 0) {
                     cap.stamina = 0;
                 }
+                if (cap.stamina > cap.maxStamina) {
+                    cap.stamina = cap.maxStamina;
+                }
 
-                if (cost > 0) {
+                if (finalShieldCost > 0) {
                     cap.staminaRegenDelay = getRecoveryDelay(player);
-                    if (cap.stamina <= 0) {
-                        player.stopUsingItem();
-                        int cd = StaminaConfig.COMMON.itemInterruptionCooldown.get();
-                        if (cd > 0) {
-                            player.getCooldowns().addCooldown(itemForCooldown, cd);
-                        }
+                }
+
+                if (cap.stamina <= 0 && finalShieldCost > 0) {
+                    player.stopUsingItem();
+
+                    int cd = StaminaConfig.COMMON.itemInterruptionCooldown.get();
+                    if (cd > 0) {
+                        player.getCooldowns().addCooldown(itemForCooldown, cd);
                     }
                 }
 
-                sync((net.minecraft.server.level.ServerPlayer) player, cap);
+                if (!player.level().isClientSide) {
+                    sync((net.minecraft.server.level.ServerPlayer) player, cap);
+                }
             });
         }
     }
@@ -1559,8 +1585,8 @@ public class ServerStaminaHandler {
             return;
         }
         
-        float useCost = getConfiguredItemCost(item, "USE");
-        float tickCost = getConfiguredItemCost(item, "TICK");
+        float useCost = applyTirelessDiscount(event.getItemStack(), getConfiguredItemCost(item, "USE"));
+        float tickCost = applyTirelessDiscount(event.getItemStack(), getConfiguredItemCost(item, "TICK"));
         
         if (useCost > 0 || tickCost > 0) {
             player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
@@ -1911,5 +1937,25 @@ public class ServerStaminaHandler {
         }
 
         return new float[]{0f, 0f};
+    }
+
+    public static float applyTirelessDiscount(ItemStack stack, float originalCost) {
+        if (stack.isEmpty() || originalCost <= 0) return originalCost;
+        
+        int tirelessLevel = stack.getEnchantmentLevel(com.peakstamina.registry.StaminaEnchantments.TIRELESS.get());
+        if (tirelessLevel > 0) {
+            double discount = 0.0;
+            if (tirelessLevel == 1) {
+                discount = StaminaConfig.COMMON.tirelessLvl1.get();
+            } else if (tirelessLevel == 2) {
+                discount = StaminaConfig.COMMON.tirelessLvl2.get();
+            } else {
+                discount = StaminaConfig.COMMON.tirelessLvl3.get();
+            }
+            
+            float multiplier = 1.0f - (float) discount;
+            return originalCost * Math.max(0.0f, multiplier); 
+        }
+        return originalCost;
     }
 }

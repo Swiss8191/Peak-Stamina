@@ -39,7 +39,6 @@ public class CustomActionHandler {
 
     private static final List<ActionRule> RULES_CACHE = new ArrayList<>();
 
-    // Call this in ConfigReloadHandler.java & StaminaCommand.java!
     public static void refreshCache() {
         RULES_CACHE.clear();
         List<? extends String> configs = ExperimentalConfig.EXPERIMENTAL.customActionHooks.get();

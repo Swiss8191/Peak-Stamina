@@ -52,6 +52,8 @@ public class StaminaConfig {
         public ForgeConfigSpec.BooleanValue disableInCreative;
         public ForgeConfigSpec.BooleanValue disableInSpectator;
         public ForgeConfigSpec.DoubleValue initialMaxStamina;
+
+        public ForgeConfigSpec.BooleanValue enableSlowClimb;
         public ForgeConfigSpec.DoubleValue slowClimbSpeed;
 
         public ForgeConfigSpec.DoubleValue depletionSprint;
@@ -81,6 +83,14 @@ public class StaminaConfig {
         public ForgeConfigSpec.DoubleValue recoveryClimbMult;
         public ForgeConfigSpec.DoubleValue recoveryWaterMult;
         public ForgeConfigSpec.IntValue recoveryDelay;
+
+        public ForgeConfigSpec.DoubleValue lightweightLvl1;
+        public ForgeConfigSpec.DoubleValue lightweightLvl2;
+        public ForgeConfigSpec.DoubleValue lightweightLvl3;
+
+        public ForgeConfigSpec.DoubleValue tirelessLvl1;
+        public ForgeConfigSpec.DoubleValue tirelessLvl2;
+        public ForgeConfigSpec.DoubleValue tirelessLvl3;
 
         public ForgeConfigSpec.DoubleValue minMaxStamina;
         public ForgeConfigSpec.DoubleValue fatigueThreshold;
@@ -131,6 +141,7 @@ public class StaminaConfig {
             initRecovery(builder);
             initDepletion(builder);
             initCombat(builder);
+            initEnchants(builder);
             initFatigueAndLimits(builder);
             initBonusStamina(builder);
             initElytra(builder);
@@ -145,6 +156,7 @@ public class StaminaConfig {
             disableInCreative = builder.comment(" If true, players in Creative mode will not consume or use the stamina system.").define("disableInCreative", true);
             disableInSpectator = builder.comment(" If true, players in Spectator mode will not consume or use the stamina system.").define("disableInSpectator", true);
             initialMaxStamina = builder.comment(" Initial Max Stamina value for players.").defineInRange("initialMaxStamina", 100.0, 1.0, 10000.0);
+            enableSlowClimb = builder.comment(" Enable the slow climb mechanic.").define("enableSlowClimb", true);
             slowClimbSpeed = builder.comment(" Base movement speed multiplier when slow climbing (sneaking on ladders/vines).").defineInRange("slowClimbSpeed", 0.4, 0.0, 10.0);
             builder.pop();
         }
@@ -188,6 +200,26 @@ public class StaminaConfig {
             missedAttackWeightMaxMultiplier = builder.comment(" The maximum possible stamina cost multiplier for missed attacks.").defineInRange("missedAttackWeightMaxMultiplier", 5.0, 1.0, 100.0);
             builder.pop();
         }
+
+         private void initEnchants(ForgeConfigSpec.Builder builder) {
+        builder.push("Enchantments");
+    
+        lightweightLvl1 = builder.comment("Weight reduction multiplier for Lightweight I (e.g. 0.25 = 25% reduction)")
+                .defineInRange("lightweightLvl1", 0.25, 0.0, 1.0);
+        lightweightLvl2 = builder.comment("Weight reduction multiplier for Lightweight II")
+                .defineInRange("lightweightLvl2", 0.50, 0.0, 1.0);
+        lightweightLvl3 = builder.comment("Weight reduction multiplier for Lightweight III")
+                .defineInRange("lightweightLvl3", 0.75, 0.0, 1.0);
+
+        tirelessLvl1 = builder.comment("Stamina cost reduction for Tireless I (e.g. 0.20 = 20% reduction)")
+                .defineInRange("tirelessLvl1", 0.20, 0.0, 1.0);
+        tirelessLvl2 = builder.comment("Stamina cost reduction for Tireless II")
+                .defineInRange("tirelessLvl2", 0.40, 0.0, 1.0);
+        tirelessLvl3 = builder.comment("Stamina cost reduction for Tireless III")
+                .defineInRange("tirelessLvl3", 0.60, 0.0, 1.0);
+                
+        builder.pop();
+         }
 
         private void initFatigueAndLimits(ForgeConfigSpec.Builder builder) {
             builder.push("Fatigue & Limits");
@@ -331,6 +363,10 @@ public class StaminaConfig {
         public final ForgeConfigSpec.DoubleValue autoHudThreshold;
         public final ForgeConfigSpec.BooleanValue autoHudShowOnPenalties;
 
+        public final ForgeConfigSpec.BooleanValue enableWeightHUD;
+        public final ForgeConfigSpec.IntValue weightHudX;
+        public final ForgeConfigSpec.IntValue weightHudY;
+
         // Tooltip Configs
         public final ForgeConfigSpec.BooleanValue enableTooltips;
         public final ForgeConfigSpec.BooleanValue advancedTooltipsOnly;
@@ -376,6 +412,19 @@ public class StaminaConfig {
             colorBonusBottom = builder.comment(" Bottom gradient color for Bonus Stamina (RGB). Default: Dark Orange").defineInRange("colorBonusBottom", 16747520, 0, 16777215);
             colorBonusHighlight = builder.comment(" Color of the highlight sheen (RGB). Default: White").defineInRange("colorBonusHighlight", 16777215, 0, 16777215);
             bonusHighlightAlpha = builder.comment(" Opacity of the highlight sheen (0-255). 0 = Invisible, 255 = Solid. Default: 128 (Semi-transparent)").defineInRange("bonusHighlightAlpha", 128, 0, 255);
+            builder.pop();
+
+            builder.push("Encumbrance UI");
+            
+            enableWeightHUD = builder.comment("Enable the dynamic Weight/Encumbrance text on the inventory screen.")
+                    .define("enableWeightHUD", true);
+                    
+            weightHudX = builder.comment("X position offset for the Weight HUD (0 is the center of the screen)")
+                    .defineInRange("weightHudX", -51, -4000, 4000);
+                    
+            weightHudY = builder.comment("Y position offset for the Weight HUD (0 is the center of the screen)")
+                    .defineInRange("weightHudY", -75, -4000, 4000);
+                    
             builder.pop();
 
             builder.push("Auto Hud");

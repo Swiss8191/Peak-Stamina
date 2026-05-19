@@ -47,7 +47,8 @@ public class PacketMissedAttack {
                 weightMult = Math.max(minMult, Math.min(maxMult, weightMult)); 
                 cost *= (float) weightMult;
             }
-
+            
+            cost = com.peakstamina.handlers.ServerStaminaHandler.applyTirelessDiscount(player.getMainHandItem(), cost);
 
             final float finalBaseCost = cost;
             

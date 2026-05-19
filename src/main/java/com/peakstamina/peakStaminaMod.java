@@ -43,13 +43,14 @@ public class peakStaminaMod {
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ExperimentalConfig.EXPERIMENTAL_SPEC, "peakstamina/experimental.toml");
 
         StaminaAttributes.ATTRIBUTES.register(modEventBus);
+        com.peakstamina.registry.StaminaEnchantments.ENCHANTMENTS.register(modEventBus);
         modEventBus.addListener(this::attachAttributes);
         modEventBus.addListener(this::registerCaps);
-
+        
         StaminaNetwork.register();
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
-            // MixinEnvironment.getDefaultEnvironment().setObfuscationContext("searge"); // Generally not needed in modern Forge unless specific mixin issues arise
+            // MixinEnvironment.getDefaultEnvironment().setObfuscationContext("searge"); 
         }
 
         MinecraftForge.EVENT_BUS.register(this);

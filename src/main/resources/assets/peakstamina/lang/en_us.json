@@ -34,5 +34,13 @@
   "attribute.peakstamina.bonus_stamina_capacity": "Bonus Stamina Capacity",
   "attribute.peakstamina.bonus_stamina_decay_rate": "Bonus Stamina Decay Rate",
   "attribute.peakstamina.bonus_stamina_decay_delay": "Bonus Stamina Decay Delay",
-  "attribute.peakstamina.excess_conversion_multiplier": "Excess Conversion Multiplier"
+  "attribute.peakstamina.excess_conversion_multiplier": "Excess Conversion Multiplier",
+
+  "enchantment.peakstamina.lightweight": "Lightweight",
+  "enchantment.peakstamina.lightweight.desc": "Reduces the calculated weight of the enchanted item.",
+  
+  "enchantment.peakstamina.tireless": "Tireless",
+  "enchantment.peakstamina.tireless.desc": "Significantly reduces the stamina cost of swinging, mining, blocking, or drawing this item.",
+
+  "gui.peakstamina.weight_readout": "%1$s lbs"
 }

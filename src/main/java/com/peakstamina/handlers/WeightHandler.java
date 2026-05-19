@@ -193,7 +193,6 @@ public class WeightHandler {
 
         double totalWeight = 0.0;
         boolean overridden = false;
-
         if (itemWeightCache.containsKey(regName)) {
             totalWeight += itemWeightCache.get(regName);
             overridden = true;
@@ -210,7 +209,7 @@ public class WeightHandler {
         }
 
         if (NBT_WEIGHT_PATHS_CACHE.containsKey(item)) {
-            overridden = true; 
+            overridden = true;
             CompoundTag tag = stack.getTag();
             
             for (NbtWeightPath nbtPath : NBT_WEIGHT_PATHS_CACHE.get(item)) {
@@ -228,7 +227,6 @@ public class WeightHandler {
                 }
                 
                 totalWeight += addedWeight;
-
                 if (debugNbtPaths) {
                     System.out.println("[PeakStamina NBT Debug] Base Item: " + regName + 
                         " | Path: " + Arrays.toString(nbtPath.path) + 
@@ -238,14 +236,30 @@ public class WeightHandler {
             }
         }
 
+        double lightweightDiscount = 0.0;
+        int lightweightLevel = stack.getEnchantmentLevel(com.peakstamina.registry.StaminaEnchantments.LIGHTWEIGHT.get());
+        if (lightweightLevel > 0) {
+            if (lightweightLevel == 1) {
+                lightweightDiscount = StaminaConfig.COMMON.lightweightLvl1.get();
+            } else if (lightweightLevel == 2) {
+                lightweightDiscount = StaminaConfig.COMMON.lightweightLvl2.get();
+            } else {
+                lightweightDiscount = StaminaConfig.COMMON.lightweightLvl3.get();
+            }
+        }
+        double weightMultiplier = Math.max(0.0, 1.0 - lightweightDiscount);
+
         if (overridden) {
+            totalWeight *= weightMultiplier;
             return totalWeight * count;
         }
 
         int maxStack = item.getMaxStackSize();
         if (maxStack <= 0) maxStack = 1;
-        
         double singleWeight = baseHeuristic / (double) maxStack;
+        
+        singleWeight *= weightMultiplier;
+
         return singleWeight * count;
     }
 

@@ -27,7 +27,7 @@ import java.util.Map;
 
 public class StaminaCommand {
 
-    // Centralized map for all attribute commands. Add new attributes here ONLY!
+    // Centralized map for all attribute commands. Add new attributes here.
     private static final Map<String, RegistryObject<Attribute>> ATTRIBUTE_MAP = new HashMap<>();
 
     static {

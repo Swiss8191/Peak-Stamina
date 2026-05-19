@@ -75,11 +75,13 @@ public class TooltipHandler {
                             double scaleFactor = StaminaConfig.COMMON.attackWeightScaleFactor.get();
                             double minMult = StaminaConfig.COMMON.attackWeightMinMultiplier.get();
                             double maxMult = StaminaConfig.COMMON.attackWeightMaxMultiplier.get();
-
                             double weightMult = 1.0 + (((singleWeight - normalizer) / normalizer) * scaleFactor);
                             weightMult = Math.max(minMult, Math.min(maxMult, weightMult));
                             attackCost *= (float) weightMult;
                         }
+                        
+                        attackCost = ServerStaminaHandler.applyTirelessDiscount(stack, attackCost);
+                        
                         if (attackCost != 0 && isWeaponOrTool(stack)) {
                             comp = Component.literal(StaminaConfig.CLIENT.labelAttackCost.get()).withStyle(labelColor)
                                     .append(Component.literal(String.format("%.1f", attackCost)).withStyle(valueColor));
@@ -87,6 +89,8 @@ public class TooltipHandler {
                         break;
                     case "USE_COST":
                         float useCost = ServerStaminaHandler.getConfiguredItemCost(stack.getItem(), "USE");
+                        useCost = ServerStaminaHandler.applyTirelessDiscount(stack, useCost);
+                        
                         if (useCost != 0) {
                             comp = Component.literal(StaminaConfig.CLIENT.labelUseCost.get()).withStyle(labelColor)
                                     .append(Component.literal(String.format("%.1f", useCost)).withStyle(valueColor));
@@ -94,6 +98,8 @@ public class TooltipHandler {
                         break;
                     case "TICK_COST":
                         float tickCost = ServerStaminaHandler.getConfiguredItemCost(stack.getItem(), "TICK");
+                        tickCost = ServerStaminaHandler.applyTirelessDiscount(stack, tickCost);
+                        
                         if (tickCost != 0) {
                             comp = Component.literal(StaminaConfig.CLIENT.labelTickCost.get()).withStyle(labelColor)
                                     .append(Component.literal(String.format("%.1f/t", tickCost)).withStyle(valueColor));
@@ -101,9 +107,12 @@ public class TooltipHandler {
                         break;
                     case "BLOCK_COST":
                         float[] shieldVals = ServerStaminaHandler.getShieldValues(stack.getItem());
-                        if (shieldVals[0] != 0 || shieldVals[1] != 0) {
+                        float baseBlockCost = ServerStaminaHandler.applyTirelessDiscount(stack, shieldVals[0]);
+                        float multBlockCost = ServerStaminaHandler.applyTirelessDiscount(stack, shieldVals[1]);
+                        
+                        if (baseBlockCost != 0 || multBlockCost != 0) {
                             comp = Component.literal(StaminaConfig.CLIENT.labelBlockCost.get()).withStyle(labelColor)
-                                    .append(Component.literal(String.format("%.1f + (Dmg * %.1f)", shieldVals[0], shieldVals[1])).withStyle(valueColor));
+                                    .append(Component.literal(String.format("%.1f + (Dmg * %.1f)", baseBlockCost, multBlockCost)).withStyle(valueColor));
                         }
                         break;
                     case "MISSED_ATTACK_COST":
@@ -114,11 +123,13 @@ public class TooltipHandler {
                             double scaleFactor = StaminaConfig.COMMON.missedAttackWeightScaleFactor.get();
                             double minMult = StaminaConfig.COMMON.missedAttackWeightMinMultiplier.get();
                             double maxMult = StaminaConfig.COMMON.missedAttackWeightMaxMultiplier.get();
-
                             double weightMult = 1.0 + (((singleWeight - normalizer) / normalizer) * scaleFactor);
                             weightMult = Math.max(minMult, Math.min(maxMult, weightMult));
                             missedCost *= (float) weightMult;
                         }
+                        
+                        missedCost = ServerStaminaHandler.applyTirelessDiscount(stack, missedCost);
+                        
                         if (missedCost != 0 && isWeaponOrTool(stack)) {
                             comp = Component.literal(StaminaConfig.CLIENT.labelMissCost.get()).withStyle(labelColor)
                                     .append(Component.literal(String.format("%.1f", missedCost)).withStyle(valueColor));
