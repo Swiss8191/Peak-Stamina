@@ -7,9 +7,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.peakstamina.capabilities.StaminaCapability;
 import com.peakstamina.config.StaminaConfig;
-import com.peakstamina.config.StaminaLists; 
-import com.peakstamina.network.PacketSyncStamina;
+import com.peakstamina.config.StaminaLists;
 import com.peakstamina.network.StaminaNetwork;
+import com.peakstamina.network.packets.PacketSyncStamina;
 import com.peakstamina.registry.StaminaAttributes;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -164,14 +164,14 @@ public class StaminaCommand {
             .then(Commands.literal("reload")
                 .executes(context -> {
                     // Refresh all stamina caches
-                    com.peakstamina.handlers.ServerStaminaHandler.refreshAllCaches();
-                    com.peakstamina.handlers.WeightHandler.validateCache();
-                    com.peakstamina.handlers.MobStaminaHandler.refreshCache();
-                    com.peakstamina.handlers.CustomActionHandler.refreshCache();
+                    com.peakstamina.handlers.core.ServerStaminaHandler.refreshAllCaches();
+                    com.peakstamina.handlers.mechanics.WeightHandler.validateCache();
+                    com.peakstamina.handlers.experimental.MobStaminaHandler.refreshCache();
+                    com.peakstamina.handlers.experimental.CustomActionHandler.refreshCache();
 
                     // Refresh compat caches if the mods are loaded
                     if (net.minecraftforge.fml.ModList.get().isLoaded("parcool")) {
-                        com.peakstamina.compat.ParCoolCompat.refreshCache();
+                        com.peakstamina.compat.parcool.ParCoolCompat.refreshCache();
                     }
 
                     context.getSource().sendSuccess(() -> net.minecraft.network.chat.Component.literal("§a[PeakStamina] Configs and weight caches successfully reloaded!"), true);

@@ -110,7 +110,8 @@ public class StaminaLists {
         private static final List<String> DEFAULT_EXHAUSTION_PENALTIES = Arrays.asList(
                 "minecraft:generic.movement_speed;-0.10;2",
                 "minecraft:generic.attack_speed;-0.15;2",
-                "minecraft:generic.attack_damage;-0.15;2"
+                "minecraft:generic.attack_damage;-0.15;2",
+                "minecraft:slowness;0;30"
         );
 
         private static final List<String> DEFAULT_UNIVERSAL_PENALTIES = Arrays.asList(
@@ -154,6 +155,14 @@ public class StaminaLists {
                 "VerticalWallRun;CONTINUE;0.8",
                 "WallJump;START;4.0",
                 "WallSlide;CONTINUE;0.2"
+        );
+
+        private static final java.util.List<String> DEFAULT_WALLJUMP_COSTS = java.util.Arrays.asList(
+                "WallJump;START;10.0",
+                "DoubleJump;START;15.0",
+                "WallCling;START;3.0;CONTINUE;0.15",
+                "SpeedBoost;START;3.0",
+                "StepAssist;START;1.5"
         );
 
         private static final List<String> DEFAULT_CONTAINER_PATHS = Arrays.asList();
@@ -262,7 +271,17 @@ public class StaminaLists {
         public ForgeConfigSpec.ConfigValue<List<? extends String>> nbtWeightPaths;
 
         public ForgeConfigSpec.ConfigValue<List<? extends String>> parCoolActionCosts;
+
         public ForgeConfigSpec.DoubleValue combatRollCost;
+
+        public ForgeConfigSpec.DoubleValue shieldExpParryMult;
+        public ForgeConfigSpec.DoubleValue shieldExpParryBonus;
+
+        public ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> wallJumpActionCosts;
+        public ForgeConfigSpec.DoubleValue speedBoostExtraLvl1;
+        public ForgeConfigSpec.DoubleValue speedBoostExtraLvl2;
+        public ForgeConfigSpec.DoubleValue speedBoostExtraLvl3;
+        public ForgeConfigSpec.BooleanValue dropOnEmptyWallCling;
 
         public Lists(ForgeConfigSpec.Builder builder) {
             initOtherLists(builder);
@@ -312,6 +331,11 @@ public class StaminaLists {
                     " List of Attribute Penalties to apply when Stamina hits 0.",
                     " Format: \"AttributeRegistryName;Amount;Operation\"",
                     " Operations: 0 = ADDITION (Flat number), 1 = MULTIPLY_BASE, 2 = MULTIPLY_TOTAL (Percentage)",
+                    " ",
+                    " You can also apply Potion Effects.",
+                    " Format: \"EffectRegistryName;Amplifier;DurationTicks\"",
+                    " Example: \"minecraft:slowness;0;30\" (Slowness 1 for 1.5 seconds)",
+                    " Note: The mod automatically refreshes the potion effect every 10 ticks (0.5 secs) anything above that value will be a lingering penalty after they regain enough stamina.",
                     " "
             ).defineList("customExhaustionPenalties", DEFAULT_EXHAUSTION_PENALTIES, obj -> obj instanceof String);
             builder.pop();
@@ -390,36 +414,36 @@ public class StaminaLists {
                     " "
             ).defineList("customTagWeights", DEFAULT_TAG_WEIGHTS, obj -> obj instanceof String);
 
-                builder.push("Special NBT paths");
-                nbtWeightPaths = builder.comment(
-                        " ",
-                        " Advanced NBT Weight Extraction",
-                        " ",
-                        " WHEN TO USE THIS:",
-                        " Most items in Minecraft use a standard Item ID (e.g., 'minecraft:apple' or 'minecraft:iron_sword').",
-                        " For those, you do NOT need this list. Just put them directly into the Explicit Item Weights list.",
-                        " However, some complex mods (like TACZ) use a single base item (e.g., 'tacz:ammo') and store the ",
-                        " ACTUAL specific item ID (like 'tacz:9mm') hidden inside NBT folders.",
-                        " This list tells the weight system exactly where to look inside the NBT data to find that true ID.",
-                        " ",
-                        " WHERE TO PUT THE IDS:",
-                        " Once you define a path here, the weight system will get the hidden ID (e.g., 'tacz:9mm').",
-                        " You must then put that extracted ID into your 'Explicit Item Weights' list to assign it a weight.",
-                        " ",
-                        " Format: 'base_item_id ; nbt.path.to.id ; fallbackWeight ; applyFallbackIfMissing'",
-                        " ",
-                        " Examples:",
-                        "  'tacz:ammo;AmmoId;0.05;true'",
-                        "   (Looks inside 'tacz:ammo' for 'AmmoId'. If it finds an ID like 'tacz:9mm', it checks Explicit Weights for it.",
-                        "   If 'tacz:9mm' isn't configured, it adds 0.05 weight. If the AmmoId tag is missing entirely, it adds 0.05 because true.)",
-                        " ",
-                        "  'tacz:modern_kinetic_gun;AttachmentSCOPE.tag.AttachmentId;0.5;false'",
-                        "   (Digs through the NBT folders to check for a scope. If found, checks explicit weights, else adds 0.5.",
-                        "   If no scope is equipped (AttachmentSCOPE is empty), it adds 0.0 weight because false. If it was true it would add 0.5 weight regardless of if its empty or not.)",
-                        " ",
-                        " Note: This uses the same logic as universal penalties (the '.' behavior, for assistance refer to the wiki)"
-                        ).defineList("nbtWeightPaths", DEFAULT_NBT_PATHS, obj -> obj instanceof String);
-                builder.pop();
+            builder.push("Special NBT paths");
+            nbtWeightPaths = builder.comment(
+                    " ",
+                    " Advanced NBT Weight Extraction",
+                    " ",
+                    " WHEN TO USE THIS:",
+                    " Most items in Minecraft use a standard Item ID (e.g., 'minecraft:apple' or 'minecraft:iron_sword').",
+                    " For those, you do NOT need this list. Just put them directly into the Explicit Item Weights list.",
+                    " However, some complex mods (like TACZ) use a single base item (e.g., 'tacz:ammo') and store the ",
+                    " ACTUAL specific item ID (like 'tacz:9mm') hidden inside NBT folders.",
+                    " This list tells the weight system exactly where to look inside the NBT data to find that true ID.",
+                    " ",
+                    " WHERE TO PUT THE IDS:",
+                    " Once you define a path here, the weight system will get the hidden ID (e.g., 'tacz:9mm').",
+                    " You must then put that extracted ID into your 'Explicit Item Weights' list to assign it a weight.",
+                    " ",
+                    " Format: 'base_item_id ; nbt.path.to.id ; fallbackWeight ; applyFallbackIfMissing'",
+                    " ",
+                    " Examples:",
+                    "  'tacz:ammo;AmmoId;0.05;true'",
+                    "   (Looks inside 'tacz:ammo' for 'AmmoId'. If it finds an ID like 'tacz:9mm', it checks Explicit Weights for it.",
+                    "   If 'tacz:9mm' isn't configured, it adds 0.05 weight. If the AmmoId tag is missing entirely, it adds 0.05 because true.)",
+                    " ",
+                    "  'tacz:modern_kinetic_gun;AttachmentSCOPE.tag.AttachmentId;0.5;false'",
+                    "   (Digs through the NBT folders to check for a scope. If found, checks explicit weights, else adds 0.5.",
+                    "   If no scope is equipped (AttachmentSCOPE is empty), it adds 0.0 weight because false. If it was true it would add 0.5 weight regardless of if its empty or not.)",
+                    " ",
+                    " Note: This uses the same logic as universal penalties (the '.' behavior, for assistance refer to the wiki)"
+            ).defineList("nbtWeightPaths", DEFAULT_NBT_PATHS, obj -> obj instanceof String);
+            builder.pop();
             builder.pop();
         }
 
@@ -558,6 +582,45 @@ public class StaminaLists {
             builder.push("Combat Roll Compatibility");
             combatRollCost = builder.comment(" How much stamina a Combat Roll costs.")
                     .defineInRange("combatRollCost", 15.0, -1000.0, 1000.0);
+            builder.pop();
+
+            builder.push("Shield Expansion Compatibility");
+            shieldExpParryMult = builder.comment(" Multiplier for the stamina block cost when successfully parrying.",
+                    " 0.0 = Free parry, 0.5 = Half stamina cost, 1.0 = Normal block cost.")
+                    .defineInRange("shieldExpParryMult", 0.0, 0.0, 10.0);
+
+            shieldExpParryBonus = builder.comment(" Flat amount of Bonus Stamina (Yellow Bar) to grant when successfully parrying.",
+                    " Set to 0.0 to disable.")
+                    .defineInRange("shieldExpParryBonus", 15.0, 0.0, 100.0);
+            builder.pop();
+
+            builder.push("WallJump Compatibility");
+
+            wallJumpActionCosts = builder.comment(
+                    " ",
+                    " Wall-Jump! TXF Action Stamina Costs",
+                    " Format: \"ActionName;START;Cost;CONTINUE;Cost\"",
+                    " Types:",
+                    "  START    = One-time cost when action begins",
+                    "  CONTINUE = Cost per tick while action is active",
+                    " ",
+                    " Available Actions:",
+                    "  WallJump, DoubleJump, WallCling, SpeedBoost, StepAssist",
+                    " "
+            ).defineList("wallJumpActionCosts", DEFAULT_WALLJUMP_COSTS, obj -> obj instanceof String);
+
+            speedBoostExtraLvl1 = builder.comment("Extra stamina drained per tick for Speed Boost Level 1.")
+                    .defineInRange("speedBoostExtraLvl1", 0.02, 0.0, 100.0);
+
+            speedBoostExtraLvl2 = builder.comment("Extra stamina drained per tick for Speed Boost Level 2.")
+                    .defineInRange("speedBoostExtraLvl2", 0.05, 0.0, 100.0);
+
+            speedBoostExtraLvl3 = builder.comment("Extra stamina drained per tick for Speed Boost Level 3.")
+                    .defineInRange("speedBoostExtraLvl3", 0.1, 0.0, 100.0);
+
+            dropOnEmptyWallCling = builder.comment("If true, the player will be forced to let go of the wall if they run out of stamina.")
+                    .define("dropOnEmptyWallCling", true);
+
             builder.pop();
         }
     }

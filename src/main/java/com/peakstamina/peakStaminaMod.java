@@ -7,13 +7,18 @@ import com.peakstamina.registry.StaminaAttributes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 
-import com.peakstamina.compat.ParCoolCompat;
-import com.peakstamina.compat.PackedUpCompat;
-import com.peakstamina.compat.CombatRollCompat;
-import com.peakstamina.compat.ParCoolClientCompat;
+import com.peakstamina.compat.combatroll.CombatRollCompat;
+import com.peakstamina.compat.packedup.PackedUpCompat;
+import com.peakstamina.compat.parcool.ParCoolCompat;
+import com.peakstamina.compat.parcool.ParCoolClientCompat;
+import com.peakstamina.compat.shieldexp.ShieldExpansionCompat;
+import com.peakstamina.compat.walljump.WallJumpCompat;
+import com.peakstamina.compat.walljump.WallJumpClientCompat;
+
 import com.peakstamina.config.ExperimentalConfig;
 import com.peakstamina.config.StaminaConfig;
 import com.peakstamina.config.StaminaLists;
+
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
@@ -42,6 +47,13 @@ public class peakStaminaMod {
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, StaminaLists.LISTS_SPEC, "peakstamina/lists.toml");
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ExperimentalConfig.EXPERIMENTAL_SPEC, "peakstamina/experimental.toml");
 
+        ModLoadingContext.get().registerExtensionPoint(
+            net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
+            () -> new net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory(
+                (minecraft, parentScreen) -> com.peakstamina.client.gui.PeakConfigMenu.createScreen(parentScreen)
+            )
+        );
+
         StaminaAttributes.ATTRIBUTES.register(modEventBus);
         com.peakstamina.registry.StaminaEnchantments.ENCHANTMENTS.register(modEventBus);
         modEventBus.addListener(this::attachAttributes);
@@ -58,9 +70,10 @@ public class peakStaminaMod {
 
         if (net.minecraftforge.fml.ModList.get().isLoaded("parcool")) {
             ParCoolCompat.init();
-            if (FMLEnvironment.dist == Dist.CLIENT) {
-                ParCoolClientCompat.init();
-            }
+        }
+
+        if (net.minecraftforge.fml.ModList.get().isLoaded("walljump")) {
+            WallJumpCompat.init(); 
         }
 
         if (net.minecraftforge.fml.ModList.get().isLoaded("packedup")) {
@@ -68,8 +81,24 @@ public class peakStaminaMod {
         }
 
         if (net.minecraftforge.fml.ModList.get().isLoaded("combatroll")) {
-            CombatRollCompat.register();
+            CombatRollCompat.init();
         }
+
+        if (net.minecraftforge.fml.ModList.get().isLoaded("shieldexp")) {
+            ShieldExpansionCompat.init();
+        }
+
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            if (net.minecraftforge.fml.ModList.get().isLoaded("parcool")) {
+                ParCoolClientCompat.init();
+            }
+
+            if (net.minecraftforge.fml.ModList.get().isLoaded("walljump")) {
+                WallJumpClientCompat.init(); 
+            }
+            
+        }
+
     }
 
     private void attachAttributes(EntityAttributeModificationEvent event) {
@@ -131,5 +160,18 @@ public class peakStaminaMod {
     @SubscribeEvent
     public void onRegisterCommands(RegisterCommandsEvent event) {
         StaminaCommand.register(event.getDispatcher());
+    }
+
+    @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
+    public static class ConfigReloadHandler {
+        @SubscribeEvent
+        public static void onConfigReload(net.minecraftforge.fml.event.config.ModConfigEvent.Reloading event) {
+            if (event.getConfig().getType() == net.minecraftforge.fml.config.ModConfig.Type.COMMON) {
+                com.peakstamina.handlers.core.ServerStaminaHandler.refreshAllCaches(); 
+            }
+            if (event.getConfig().getType() == net.minecraftforge.fml.config.ModConfig.Type.CLIENT) {
+                com.peakstamina.client.events.ClientStaminaEvents.invalidateCache();
+            }
+        }
     }
 }

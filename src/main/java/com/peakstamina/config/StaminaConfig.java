@@ -16,6 +16,12 @@ public class StaminaConfig {
         HARDCORE
     }
 
+    public enum RegenIndicatorStyle {
+        DEFAULT,
+        CUSTOM,
+        OFF
+    }
+
     public enum AutoHudMode {
         FADE,
         SLIDE,
@@ -201,25 +207,25 @@ public class StaminaConfig {
             builder.pop();
         }
 
-         private void initEnchants(ForgeConfigSpec.Builder builder) {
-        builder.push("Enchantments");
-    
-        lightweightLvl1 = builder.comment("Weight reduction multiplier for Lightweight I (e.g. 0.25 = 25% reduction)")
-                .defineInRange("lightweightLvl1", 0.25, 0.0, 1.0);
-        lightweightLvl2 = builder.comment("Weight reduction multiplier for Lightweight II")
-                .defineInRange("lightweightLvl2", 0.50, 0.0, 1.0);
-        lightweightLvl3 = builder.comment("Weight reduction multiplier for Lightweight III")
-                .defineInRange("lightweightLvl3", 0.75, 0.0, 1.0);
+        private void initEnchants(ForgeConfigSpec.Builder builder) {
+            builder.push("Enchantments");
 
-        tirelessLvl1 = builder.comment("Stamina cost reduction for Tireless I (e.g. 0.20 = 20% reduction)")
-                .defineInRange("tirelessLvl1", 0.20, 0.0, 1.0);
-        tirelessLvl2 = builder.comment("Stamina cost reduction for Tireless II")
-                .defineInRange("tirelessLvl2", 0.40, 0.0, 1.0);
-        tirelessLvl3 = builder.comment("Stamina cost reduction for Tireless III")
-                .defineInRange("tirelessLvl3", 0.60, 0.0, 1.0);
-                
-        builder.pop();
-         }
+            lightweightLvl1 = builder.comment("Weight reduction multiplier for Lightweight I (e.g. 0.25 = 25% reduction)")
+                    .defineInRange("lightweightLvl1", 0.25, 0.0, 1.0);
+            lightweightLvl2 = builder.comment("Weight reduction multiplier for Lightweight II")
+                    .defineInRange("lightweightLvl2", 0.50, 0.0, 1.0);
+            lightweightLvl3 = builder.comment("Weight reduction multiplier for Lightweight III")
+                    .defineInRange("lightweightLvl3", 0.75, 0.0, 1.0);
+
+            tirelessLvl1 = builder.comment("Stamina cost reduction for Tireless I (e.g. 0.20 = 20% reduction)")
+                    .defineInRange("tirelessLvl1", 0.20, 0.0, 1.0);
+            tirelessLvl2 = builder.comment("Stamina cost reduction for Tireless II")
+                    .defineInRange("tirelessLvl2", 0.40, 0.0, 1.0);
+            tirelessLvl3 = builder.comment("Stamina cost reduction for Tireless III")
+                    .defineInRange("tirelessLvl3", 0.60, 0.0, 1.0);
+
+            builder.pop();
+        }
 
         private void initFatigueAndLimits(ForgeConfigSpec.Builder builder) {
             builder.push("Fatigue & Limits");
@@ -329,6 +335,12 @@ public class StaminaConfig {
             ICON
         }
 
+        public enum WeightUnit {
+            lbs,
+            kg,
+            CUSTOM
+        }
+
         public final ForgeConfigSpec.EnumValue<HudStyle> hudStyle;
         public final ForgeConfigSpec.IntValue barXOffset;
         public final ForgeConfigSpec.IntValue barYOffset;
@@ -362,16 +374,23 @@ public class StaminaConfig {
         public final ForgeConfigSpec.IntValue autoHudLingerTime;
         public final ForgeConfigSpec.DoubleValue autoHudThreshold;
         public final ForgeConfigSpec.BooleanValue autoHudShowOnPenalties;
+        public final ForgeConfigSpec.BooleanValue autoHudShowOnBonus;
+
+        public final ForgeConfigSpec.EnumValue<RegenIndicatorStyle> regenIndicatorStyle;
+        public final ForgeConfigSpec.BooleanValue showRegenBorder;
 
         public final ForgeConfigSpec.BooleanValue enableWeightHUD;
-        public final ForgeConfigSpec.IntValue weightHudX;
-        public final ForgeConfigSpec.IntValue weightHudY;
+        public final ForgeConfigSpec.IntValue weightXOffset;
+        public final ForgeConfigSpec.IntValue weightYOffset;
+        public final ForgeConfigSpec.EnumValue<WeightUnit> displayUnit;
+        public final ForgeConfigSpec.ConfigValue<String> customUnitLabel;
+        public final ForgeConfigSpec.DoubleValue customUnitMultiplier;
 
         // Tooltip Configs
         public final ForgeConfigSpec.BooleanValue enableTooltips;
         public final ForgeConfigSpec.BooleanValue advancedTooltipsOnly;
         public final ForgeConfigSpec.ConfigValue<List<? extends String>> customTooltips;
-        
+
         // Tooltip Labels
         public final ForgeConfigSpec.ConfigValue<String> labelWeight;
         public final ForgeConfigSpec.ConfigValue<String> labelAttackCost;
@@ -388,11 +407,13 @@ public class StaminaConfig {
             builder.push("HUD Layout");
             hudStyle = builder.comment(" The style of the HUD. BAR is horizontal, ICON is vertical.").defineEnum("hudStyle", HudStyle.BAR);
             barXOffset = builder.comment("X offset for the Stamina HUD in BAR mode.").defineInRange("barXOffset", 0, -5000, 5000);
-            barYOffset = builder.comment("Y offset for the Stamina HUD in BAR mode.").defineInRange("barYOffset", 0, -5000, 5000);
+            barYOffset = builder.comment("Y offset for the Stamina HUD in BAR mode.").defineInRange("barYOffset", 1, -5000, 5000);
             iconXOffset = builder.comment("X offset for the Stamina HUD in ICON mode.").defineInRange("iconXOffset", 0, -5000, 5000);
             iconYOffset = builder.comment("Y offset for the Stamina HUD in ICON mode.").defineInRange("iconYOffset", 0, -5000, 5000);
-            barWidth = builder.comment(" Width of the bar in pixels (Used for BAR style)").defineInRange("barWidth", 180, 1, 1000);
-            barHeight = builder.comment(" Height of the bar in pixels (Used for BAR style)").defineInRange("barHeight", 2, 1, 100);
+            barWidth = builder.comment(" Width of the bar in pixels (Used for BAR style)").defineInRange("barWidth", 182, 1, 1000);
+            barHeight = builder.comment(" Height of the bar in pixels (Used for BAR style)").defineInRange("barHeight", 4, 1, 100);
+            regenIndicatorStyle = builder.comment("Regen Arrow Style: DEFAULT (uses >>> ), CUSTOM (uses your custom texture made in the sprite sheet) or OFF.").defineEnum("regenIndicatorStyle", RegenIndicatorStyle.DEFAULT);
+            showRegenBorder = builder.comment("If true, draws a slightly dark border around the regen indicators (>).").define("showRegenBorder", true);
             showIcons = builder.comment(" Whether to render text/emoji icons on the stamina bar penalty zones.").define("showIcons", true);
             builder.pop();
 
@@ -408,23 +429,33 @@ public class StaminaConfig {
             builder.pop();
 
             builder.push("Bonus Stamina Bar");
-            colorBonusTop = builder.comment(" Top gradient color for Bonus Stamina (RGB). Default: Gold").defineInRange("colorBonusTop", 16766720, 0, 16777215);
-            colorBonusBottom = builder.comment(" Bottom gradient color for Bonus Stamina (RGB). Default: Dark Orange").defineInRange("colorBonusBottom", 16747520, 0, 16777215);
+            colorBonusTop = builder.comment(" Top gradient color for Bonus Stamina (RGB). Default: Gold").defineInRange("colorBonusTop", 16777184, 0, 16777215);
+            colorBonusBottom = builder.comment(" Bottom gradient color for Bonus Stamina (RGB). Default: Dark Orange").defineInRange("colorBonusBottom", 16449331, 0, 16777215);
             colorBonusHighlight = builder.comment(" Color of the highlight sheen (RGB). Default: White").defineInRange("colorBonusHighlight", 16777215, 0, 16777215);
             bonusHighlightAlpha = builder.comment(" Opacity of the highlight sheen (0-255). 0 = Invisible, 255 = Solid. Default: 128 (Semi-transparent)").defineInRange("bonusHighlightAlpha", 128, 0, 255);
             builder.pop();
 
             builder.push("Encumbrance UI");
-            
+
             enableWeightHUD = builder.comment("Enable the dynamic Weight/Encumbrance text on the inventory screen.")
                     .define("enableWeightHUD", true);
-                    
-            weightHudX = builder.comment("X position offset for the Weight HUD (0 is the center of the screen)")
-                    .defineInRange("weightHudX", -51, -4000, 4000);
-                    
-            weightHudY = builder.comment("Y position offset for the Weight HUD (0 is the center of the screen)")
-                    .defineInRange("weightHudY", -75, -4000, 4000);
-                    
+
+            weightXOffset = builder.comment("X position offset for the Weight HUD (0 is the center of the screen)")
+                    .defineInRange("weightXOffset", 0, -4000, 4000);
+
+            weightYOffset = builder.comment("Y position offset for the Weight HUD (0 is the center of the screen)")
+                    .defineInRange("weightYOffset", 1, -4000, 4000);
+
+            displayUnit = builder.comment("The unit of measurement to display for weight. (Internal logic remains in lbs)")
+                    .defineEnum("displayUnit", WeightUnit.kg);
+
+            customUnitLabel = builder.comment("If displayUnit is CUSTOM, what label should be shown? (e.g., 'oz', 'stones')")
+                    .define("customUnitLabel", "kg");
+
+            customUnitMultiplier = builder.comment("If displayUnit is CUSTOM, what should the internal lbs value be multiplied by.",
+                    "For example, 1 lbs = 16 oz, so the multiplier for 'oz' to be displayed 'accurately' would be 16.0.")
+                    .defineInRange("customUnitMultiplier", 1.0, 0.0001, 10000.0);
+
             builder.pop();
 
             builder.push("Auto Hud");
@@ -444,12 +475,13 @@ public class StaminaConfig {
             autoHudLingerTime = builder.comment(" How long (in ticks) the bar stays visible after you stop using stamina (20 ticks = 1s).").defineInRange("autoHudLingerTime", 60, 0, 1200);
             autoHudThreshold = builder.comment(" Show the bar if stamina drops below this percentage (0.35 = 35%)").defineInRange("autoHudThreshold", 0.35, 0.0, 1.0);
             autoHudShowOnPenalties = builder.comment(" Force the bar to stay visible if you have penalties (hunger, poison, fatigue, weight).").define("autoHudShowOnPenalties", true);
+            autoHudShowOnBonus = builder.comment("If true, the stamina HUD will automatically show when you have Bonus Stamina.").define("autoHudShowOnBonus", true);
             builder.pop();
 
             builder.push("Tooltips");
             enableTooltips = builder.comment("Enable stamina information on item tooltips.").define("enableTooltips", true);
             advancedTooltipsOnly = builder.comment("Only show tooltips when advanced tooltips are enabled (F3+H).").define("advancedTooltipsOnly", false);
-            
+
             builder.push("Labels");
             labelWeight = builder.comment("Text shown before the Weight value.").define("labelWeight", "Weight: ");
             labelAttackCost = builder.comment("Text shown before the Attack Cost value.").define("labelAttackCost", "Attack Cost: ");
@@ -462,7 +494,7 @@ public class StaminaConfig {
             labelRegen = builder.comment("Text shown before the Regen Modifier value.").define("labelRegen", "Regen: ");
             labelCures = builder.comment("Text shown before the Cures value.").define("labelCures", "Cures: ");
             builder.pop();
-            
+
             customTooltips = builder.comment(
                     " Define multiple tooltips to display on items. (Order here dictates order shown in-game)",
                     " Format: 'CONTENT_TYPE;PLACEMENT;LABEL_COLOR;VALUE_COLOR'",

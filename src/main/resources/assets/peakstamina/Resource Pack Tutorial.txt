@@ -1,0 +1,30 @@
+With update 2.0.0 this mod uses a texture sheet so you can freely replace or paint your own assets. The tutorial below will detail the steps you need to take to use it properly.
+
+HOW TO USE THE TEXTURE SHEET:
+---------------------------------------------------------
+
+1. Open the texture sheet
+The texture sheet is inside the textures\gui folder
+
+2. Paint Your Design
+Open this image in your preferred digital art software (Aseprite, Photoshop, etc.). Draw your custom design anywhere on the transparent canvas. 
+Note: Keep the background transparent, and save it as a standard .png
+
+3. Find Your Coordinates (UV Mapping)
+For the mod to read your texture properly, it needs to know exactly where on the sheet your drawing is, and how big it is. You will need four numbers:
+  - Starting X: The X-coordinate of the very top-left pixel of your drawing. ( u )
+  - Starting Y: The Y-coordinate of the very top-left pixel of your drawing. ( v )
+  - Width: How many pixels wide your drawing is. ( w )
+  - Height: How many pixels tall your drawing is. ( h )
+Note: Change the 4 numbers for the item you are replacing for example if you are replacing the bonus separator then you chang ethe 4 numbers for bonus separator, not add a new one.
+
+And thats it!
+
+For regen indicators it has an extra step below
+
+4. Update Your Config
+Launch the game (or edit your client.toml file directly) and navigate to the Stamina config UI settings.
+  - Set "Regen Indicator Style" to CUSTOM.
+
+
+Also note that this is my first time doing this so expect some bugs (even though I tested it relatively thoroughly), in the case you find some bugs let me know on github or in comments and I will take a look and see what I can do.
