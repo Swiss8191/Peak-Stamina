@@ -1,31 +1,49 @@
 package com.peakstamina.network;
 
-import com.peakstamina.PeakStaminaMod;
+import com.peakstamina.peakStaminaMod;
+import com.peakstamina.network.packets.PacketMissedAttack;
+import com.peakstamina.network.packets.PacketSyncStamina;
+import com.peakstamina.network.packets.walljump.PacketSyncWallJumpState;
+import com.peakstamina.network.packets.walljump.PacketWallJumpAction;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
-@EventBusSubscriber(modid = PeakStaminaMod.MODID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = peakStaminaMod.MODID, bus = EventBusSubscriber.Bus.MOD)
 public class StaminaNetwork {
+
+    private static final String PROTOCOL_VERSION = "1";
 
     @SubscribeEvent
     public static void register(final RegisterPayloadHandlersEvent event) {
-        // Create a registrar for your mod
-        final PayloadRegistrar registrar = event.registrar(PeakStaminaMod.MODID).versioned("1.0");
+        final PayloadRegistrar registrar = event.registrar(peakStaminaMod.MODID)
+                .versioned(PROTOCOL_VERSION);
 
-        // Register Server -> Client payload
+        // Server -> Client
         registrar.playToClient(
-            SyncStaminaPayload.TYPE, 
-            SyncStaminaPayload.STREAM_CODEC, 
-            SyncStaminaPayload::handle
+                PacketSyncStamina.TYPE,
+                PacketSyncStamina.STREAM_CODEC,
+                PacketSyncStamina::handle
         );
 
-        // Register Client -> Server payload
+        registrar.playToClient(
+                PacketMissedAttack.TYPE,
+                PacketMissedAttack.STREAM_CODEC,
+                PacketMissedAttack::handle
+        );
+
+        // Client -> Server
         registrar.playToServer(
-            MissedAttackPayload.TYPE, 
-            MissedAttackPayload.STREAM_CODEC, 
-            MissedAttackPayload::handle
+                PacketWallJumpAction.TYPE,
+                PacketWallJumpAction.STREAM_CODEC,
+                PacketWallJumpAction::handle
+        );
+
+        registrar.playToServer(
+                PacketSyncWallJumpState.TYPE,
+                PacketSyncWallJumpState.STREAM_CODEC,
+                PacketSyncWallJumpState::handle
         );
     }
 }

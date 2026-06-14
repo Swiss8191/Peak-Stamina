@@ -1,6 +1,6 @@
 package com.peakstamina.registry;
 
-import com.peakstamina.PeakStaminaMod;
+import com.peakstamina.peakStaminaMod;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.RangedAttribute;
@@ -12,7 +12,7 @@ import java.util.function.Supplier;
 public class StaminaAttributes {
 
     public static final DeferredRegister<Attribute> ATTRIBUTES = 
-            DeferredRegister.create(Registries.ATTRIBUTE, PeakStaminaMod.MODID);
+            DeferredRegister.create(Registries.ATTRIBUTE, peakStaminaMod.MODID);
 
     public static final DeferredHolder<Attribute, Attribute> MAX_STAMINA = ATTRIBUTES.register("max_stamina",
             () -> new RangedAttribute("attribute.peakstamina.max_stamina", 100.0D, 0.0D, 1024.0D).setSyncable(true));

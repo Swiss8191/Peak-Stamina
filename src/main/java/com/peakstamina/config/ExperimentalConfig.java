@@ -9,6 +9,7 @@ public class ExperimentalConfig {
 
     public static final Experimental EXPERIMENTAL;
     public static final ModConfigSpec EXPERIMENTAL_SPEC;
+   
 
     static {
         final Pair<Experimental, ModConfigSpec> specPair = new ModConfigSpec.Builder().configure(Experimental::new);
@@ -17,6 +18,7 @@ public class ExperimentalConfig {
     }
 
     public static class Experimental {
+
         private static final List<String> DEFAULT_PROFILES = Arrays.asList(
                 "MeleeTired; minecraft:generic.movement_speed=-0.40, minecraft:generic.attack_damage=-0.4",
                 "HeavyMelee; minecraft:generic.movement_speed=-0.60, minecraft:generic.attack_damage=-0.50",
@@ -42,20 +44,27 @@ public class ExperimentalConfig {
         );
 
         private static final List<String> DEFAULT_ACTION_HOOKS = Arrays.asList(
-                "MOUNT; minecraft:horse; 10.0",
-                "INTERACT_ENTITY; minecraft:villager; 2.0",
-                "HURT; fall; 5.0",
-                "FISH; ANY; 3.0"
+                "MOUNT; minecraft:horse; 12.0",
+                "INTERACT_ENTITY; minecraft:villager; 1.0", 
+                "HURT; fall; 10.0",
+                "FISH; ANY; 15.0"
         );
 
-        public final ModConfigSpec.ConfigValue<Boolean> enableMobStamina;
-        public final ModConfigSpec.ConfigValue<Boolean> enableExhaustionParticles;
-        public final ModConfigSpec.ConfigValue<List<? extends String>> exhaustionProfiles;
-        public final ModConfigSpec.ConfigValue<List<? extends String>> customMobStamina;
-        public final ModConfigSpec.ConfigValue<List<? extends String>> customActionHooks;
+        public ModConfigSpec.ConfigValue<Boolean> enableMobStamina;
+        public ModConfigSpec.ConfigValue<Boolean> enableExhaustionParticles;
+        public ModConfigSpec.ConfigValue<List<? extends String>> exhaustionProfiles;
+        public ModConfigSpec.ConfigValue<List<? extends String>> customMobStamina;
+        public ModConfigSpec.ConfigValue<List<? extends String>> customActionHooks;
 
         public Experimental(ModConfigSpec.Builder builder) {
-            builder.comment("Experimental features! These may impact performance or balance, use with caution.").push("Entity Stamina");
+            builder.comment("Experimental features! These may impact performance or balance, use with caution.");
+            
+            initEntityStamina(builder);
+            initActionHooks(builder);
+        }
+
+        private void initEntityStamina(ModConfigSpec.Builder builder) {
+            builder.push("Entity Stamina");
 
             enableMobStamina = builder.comment("Enable stamina system for Mobs.")
                     .define("enableMobStamina", true);
@@ -67,7 +76,7 @@ public class ExperimentalConfig {
                     "",
                     "Exhaustion Profiles",
                     "Define reusable attribute debuff templates here. Modded attributes are supported.",
-                    "Format: \"ProfileName; AttributeID=Multiplier, AttributeID=Multiplier...\"",
+                    "Format: \"ProfileName; AttributeI D=Multiplier, AttributeID=Multiplier...\"",
                     ""
             ).defineList("exhaustionProfiles", DEFAULT_PROFILES, obj -> obj instanceof String);
 
@@ -84,20 +93,26 @@ public class ExperimentalConfig {
                     ""
             ).defineList("customMobStamina", DEFAULT_MOB_STAMINA, obj -> obj instanceof String);
 
+            builder.pop();
+        }
+
+        private void initActionHooks(ModConfigSpec.Builder builder) {
+            builder.push("Action Hooks");
+
             customActionHooks = builder.comment(
-                    "",
-                    "Custom Action Hooks",
-                    "Drain or restore stamina when specific NeoForge events occur.",
-                    "Format: \"EVENT_TYPE; ARGUMENT; COST\"",
-                    "",
-                    "Available Event Types & Arguments:",
-                    "  MOUNT ; entity_id (e.g., minecraft:horse, minecraft:boat, or ANY)",
-                    "  INTERACT_ENTITY ; entity_id (e.g., minecraft:villager, or ANY)",
-                    "  HURT ; damage_source (e.g., fall, onFire, mob, arrow, or ANY)",
-                    "  FISH ; ANY",
-                    "",
-                    "Note: If cost is positive and the player lacks stamina, cancelable events (like MOUNT) will be blocked.",
-                    "Negative costs will restore stamina instead."
+                "",
+                "Custom Action Hooks",
+                "Drain or restore stamina when specific Forge events occur.",
+                "Format: \"EVENT_TYPE; ARGUMENT; COST\"",
+                "",
+                "Available Event Types & Arguments:",
+                "  MOUNT ; entity_id (e.g., minecraft:horse, minecraft:boat, or ANY)",
+                "  INTERACT_ENTITY ; entity_id (e.g., minecraft:villager, or ANY)",
+                "  HURT ; damage_source (e.g., fall, onFire, mob, arrow, or ANY)",
+                "  FISH ; ANY",
+                "",
+                "Note: If cost is positive and the player lacks stamina, cancelable events (like MOUNT) will be blocked.",
+                "Note: Negative costs will restore stamina instead."
             ).defineList("customActionHooks", DEFAULT_ACTION_HOOKS, obj -> obj instanceof String);
 
             builder.pop();

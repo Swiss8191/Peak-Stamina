@@ -1,11 +1,9 @@
 package com.peakstamina.config;
 
+import net.neoforged.neoforge.common.ModConfigSpec;
+import org.apache.commons.lang3.tuple.Pair;
 import java.util.Arrays;
 import java.util.List;
-
-import org.apache.commons.lang3.tuple.Pair;
-
-import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class StaminaLists {
 
@@ -21,8 +19,6 @@ public class StaminaLists {
     public static class Lists {
 
         private static final List<String> DEFAULT_ITEM_COSTS = Arrays.asList(
-                "minecraft:bow;TICK;0.5",
-                "minecraft:shield;TICK;0.2;BLOCK;2.0;0.8",
                 "minecraft:crossbow;TICK;0.5",
                 "minecraft:trident;TICK;0.5",
                 "minecraft:snowball;USE;1.0",
@@ -57,10 +53,8 @@ public class StaminaLists {
         );
 
         private static final List<String> DEFAULT_ITEM_COST_TAGS = Arrays.asList(
-                "c:bows;TICK;0.5",
-                "c:tools/bows;TICK;0.5",
-                "c:shields;TICK;0.2;BLOCK;2.0;0.8",
-                "c:tools/shields;TICK;0.2;BLOCK;2.0;0.8"
+                "forge:tools/bows;TICK;0.5",
+                "forge:tools/shields;TICK;0.2;BLOCK;2.0;0.8"
         );
 
         private static final List<String> DEFAULT_CONSUMABLES = Arrays.asList(
@@ -116,7 +110,8 @@ public class StaminaLists {
         private static final List<String> DEFAULT_EXHAUSTION_PENALTIES = Arrays.asList(
                 "minecraft:generic.movement_speed;-0.10;2",
                 "minecraft:generic.attack_speed;-0.15;2",
-                "minecraft:generic.attack_damage;-0.15;2"
+                "minecraft:generic.attack_damage;-0.15;2",
+                "minecraft:slowness;0;30"
         );
 
         private static final List<String> DEFAULT_UNIVERSAL_PENALTIES = Arrays.asList(
@@ -160,6 +155,14 @@ public class StaminaLists {
                 "VerticalWallRun;CONTINUE;0.8",
                 "WallJump;START;4.0",
                 "WallSlide;CONTINUE;0.2"
+        );
+
+        private static final java.util.List<String> DEFAULT_WALLJUMP_COSTS = java.util.Arrays.asList(
+                "WallJump;START;10.0",
+                "DoubleJump;START;15.0",
+                "WallCling;START;3.0;CONTINUE;0.15",
+                "SpeedBoost;START;3.0",
+                "StepAssist;START;1.5"
         );
 
         private static final List<String> DEFAULT_CONTAINER_PATHS = Arrays.asList();
@@ -230,17 +233,17 @@ public class StaminaLists {
         );
 
         private static final List<String> DEFAULT_TAG_WEIGHTS = Arrays.asList(
-                "c:ores;0.25",
-                "c:storage_blocks;0.15",
+                "forge:ores;0.25",
+                "forge:storage_blocks;0.15",
                 "minecraft:logs;0.15",
                 "minecraft:planks;0.1",
-                "c:stones;0.1",
-                "c:cobblestones;0.1",
-                "c:sands;0.1",
-                "c:gravels;0.1",
-                "c:ingots;0.2",
-                "c:gems;0.1",
-                "c:obsidians;1.2"
+                "forge:stone;0.1",
+                "forge:cobblestone;0.1",
+                "forge:sand;0.1",
+                "forge:gravel;0.1",
+                "forge:ingots;0.2",
+                "forge:gems;0.1",
+                "forge:obsidian;1.2"
         );
 
         private static final List<String> DEFAULT_NBT_PATHS = Arrays.asList(
@@ -266,8 +269,19 @@ public class StaminaLists {
         public ModConfigSpec.ConfigValue<List<? extends String>> customItemWeights;
         public ModConfigSpec.ConfigValue<List<? extends String>> customTagWeights;
         public ModConfigSpec.ConfigValue<List<? extends String>> nbtWeightPaths;
+
         public ModConfigSpec.ConfigValue<List<? extends String>> parCoolActionCosts;
+
         public ModConfigSpec.DoubleValue combatRollCost;
+
+        public ModConfigSpec.DoubleValue shieldExpParryMult;
+        public ModConfigSpec.DoubleValue shieldExpParryBonus;
+
+        public ModConfigSpec.ConfigValue<java.util.List<? extends String>> wallJumpActionCosts;
+        public ModConfigSpec.DoubleValue speedBoostExtraLvl1;
+        public ModConfigSpec.DoubleValue speedBoostExtraLvl2;
+        public ModConfigSpec.DoubleValue speedBoostExtraLvl3;
+        public ModConfigSpec.BooleanValue dropOnEmptyWallCling;
 
         public Lists(ModConfigSpec.Builder builder) {
             initOtherLists(builder);
@@ -276,7 +290,7 @@ public class StaminaLists {
             initConsumables(builder);
             initUniversalPenalties(builder);
             initUniversalBuffs(builder);
-            initParcoolCompat(builder);
+            initCompat(builder);
         }
 
         private void initConsumables(ModConfigSpec.Builder builder) {
@@ -317,6 +331,11 @@ public class StaminaLists {
                     " List of Attribute Penalties to apply when Stamina hits 0.",
                     " Format: \"AttributeRegistryName;Amount;Operation\"",
                     " Operations: 0 = ADDITION (Flat number), 1 = MULTIPLY_BASE, 2 = MULTIPLY_TOTAL (Percentage)",
+                    " ",
+                    " You can also apply Potion Effects.",
+                    " Format: \"EffectRegistryName;Amplifier;DurationTicks\"",
+                    " Example: \"minecraft:slowness;0;30\" (Slowness 1 for 1.5 seconds)",
+                    " Note: The mod automatically refreshes the potion effect every 10 ticks (0.5 secs) anything above that value will be a lingering penalty after they regain enough stamina.",
                     " "
             ).defineList("customExhaustionPenalties", DEFAULT_EXHAUSTION_PENALTIES, obj -> obj instanceof String);
             builder.pop();
@@ -354,7 +373,6 @@ public class StaminaLists {
         private void initWeightLists(ModConfigSpec.Builder builder) {
             builder.push("Weight Lists");
             customContainerPaths = builder.comment(
-                    " ",
                     " Custom Container NBT Paths.",
                     " Use this for backpacks/containers that store items inside their NBT data.",
                     " ",
@@ -483,13 +501,12 @@ public class StaminaLists {
                     "  \"EFFECT;minecraft:poison;*;0;50;5.0;4488448;☣\"",
                     "    -> Every poison level adds 5 penalty. Caps at 50.",
                     " ",
-                    " --- ADVANCED NBT PATHS (Nested Tags & NeoForge Attachments) ---",
-                    " Since NeoForge uses Data Attachments instead of Capabilities, custom mod data is usually stored",
-                    " under the 'neoforge:attachments' root tag. If a simple path doesn't work, try adding that to the start.",
+                    " --- ADVANCED NBT PATHS (Nested Tags & ForgeCaps) ---",
+                    " Sometimes even with the correct path it may not work. In this scenario try adding 'ForgeCaps.' to the start. Also use '.' to look inside tags. For assistance refer to the wiki",
                     " ",
                     " Examples of using '.' to look inside tags:",
-                    "  \"neoforge:attachments.legendarysurvivaloverhaul:thirst.hydrationLevel\"",
-                    "    -> Open neoforge:attachments ➡ open legendarysurvivaloverhaul:thirst ➡ grab hydrationLevel.",
+                    "  \"ForgeCaps.legendarysurvivaloverhaul:thirst.hydrationLevel\"",
+                    "    -> Open ForgeCaps ➡ open legendarysurvivaloverhaul:thirst ➡ grab hydrationLevel.",
                     " "
             ).defineList("universalPenalties", DEFAULT_UNIVERSAL_PENALTIES, obj -> obj instanceof String);
             builder.pop();
@@ -499,7 +516,7 @@ public class StaminaLists {
             builder.push("Universal Buffs");
             universalBuffs = builder.comment(
                     " ",
-                    " Universal Compatibility for granting Bonus Stamina.",
+                    " Universal Compatibility for granting Bonus Stamina. Uses same logic as universal penalties.",
                     " Use this to reward players with Bonus Stamina when they meet specific NBT or Potion Effect conditions.",
                     " ",
                     " Format: \"Type;Key;ActionMode;Threshold;LimitOrCooldown;Amount;BurstAmount;ScalingFactor\"",
@@ -539,7 +556,7 @@ public class StaminaLists {
             builder.pop();
         }
 
-        private void initParcoolCompat(ModConfigSpec.Builder builder) {
+        private void initCompat(ModConfigSpec.Builder builder) {
             builder.push("ParCool Compatibility");
             parCoolActionCosts = builder.comment(
                     " ",
@@ -562,9 +579,48 @@ public class StaminaLists {
             ).defineList("parCoolActionCosts", DEFAULT_PARCOOL_COSTS, obj -> obj instanceof String);
             builder.pop();
 
-            builder.push("Combat Roll Compat");
+            builder.push("Combat Roll Compatibility");
             combatRollCost = builder.comment(" How much stamina a Combat Roll costs.")
                     .defineInRange("combatRollCost", 15.0, -1000.0, 1000.0);
+            builder.pop();
+
+            builder.push("Shield Expansion Compatibility");
+            shieldExpParryMult = builder.comment(" Multiplier for the stamina block cost when successfully parrying.",
+                    " 0.0 = Free parry, 0.5 = Half stamina cost, 1.0 = Normal block cost.")
+                    .defineInRange("shieldExpParryMult", 0.0, 0.0, 10.0);
+
+            shieldExpParryBonus = builder.comment(" Flat amount of Bonus Stamina (Yellow Bar) to grant when successfully parrying.",
+                    " Set to 0.0 to disable.")
+                    .defineInRange("shieldExpParryBonus", 15.0, 0.0, 100.0);
+            builder.pop();
+
+            builder.push("WallJump Compatibility");
+
+            wallJumpActionCosts = builder.comment(
+                    " ",
+                    " Wall-Jump! TXF Action Stamina Costs",
+                    " Format: \"ActionName;START;Cost;CONTINUE;Cost\"",
+                    " Types:",
+                    "  START    = One-time cost when action begins",
+                    "  CONTINUE = Cost per tick while action is active",
+                    " ",
+                    " Available Actions:",
+                    "  WallJump, DoubleJump, WallCling, SpeedBoost, StepAssist",
+                    " "
+            ).defineList("wallJumpActionCosts", DEFAULT_WALLJUMP_COSTS, obj -> obj instanceof String);
+
+            speedBoostExtraLvl1 = builder.comment("Extra stamina drained per tick for Speed Boost Level 1.")
+                    .defineInRange("speedBoostExtraLvl1", 0.02, 0.0, 100.0);
+
+            speedBoostExtraLvl2 = builder.comment("Extra stamina drained per tick for Speed Boost Level 2.")
+                    .defineInRange("speedBoostExtraLvl2", 0.05, 0.0, 100.0);
+
+            speedBoostExtraLvl3 = builder.comment("Extra stamina drained per tick for Speed Boost Level 3.")
+                    .defineInRange("speedBoostExtraLvl3", 0.1, 0.0, 100.0);
+
+            dropOnEmptyWallCling = builder.comment("If true, the player will be forced to let go of the wall if they run out of stamina.")
+                    .define("dropOnEmptyWallCling", true);
+
             builder.pop();
         }
     }

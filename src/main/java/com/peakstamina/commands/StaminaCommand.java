@@ -9,10 +9,10 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.peakstamina.capabilities.StaminaCapability;
 import com.peakstamina.config.StaminaLists;
 import com.peakstamina.data.StaminaData;
-import com.peakstamina.handlers.ServerStaminaHandler;
-import com.peakstamina.registry.StaminaAttachments;
+import com.peakstamina.handlers.core.ServerStaminaHandler;
 import com.peakstamina.registry.StaminaAttributes;
 
 import net.minecraft.commands.CommandSourceStack;
@@ -67,7 +67,7 @@ public class StaminaCommand {
             .then(Commands.literal("get")
                 .executes(context -> {
                     ServerPlayer player = context.getSource().getPlayerOrException();
-                    StaminaData cap = player.getData(StaminaAttachments.STAMINA);
+                    StaminaData cap = player.getData(StaminaCapability.STAMINA);
                     
                     context.getSource().sendSuccess(() -> Component.literal(
                         "§aCurrent Stamina: §f" + String.format("%.2f", cap.stamina) + 
@@ -83,7 +83,7 @@ public class StaminaCommand {
                         float amount = FloatArgumentType.getFloat(context, "amount");
                         ServerPlayer player = context.getSource().getPlayerOrException();
                         
-                        StaminaData cap = player.getData(StaminaAttachments.STAMINA);
+                        StaminaData cap = player.getData(StaminaCapability.STAMINA);
                         cap.stamina = amount;
                         if (cap.stamina > cap.maxStamina) cap.stamina = cap.maxStamina;
                         ServerStaminaHandler.sync(player, cap);
@@ -111,7 +111,7 @@ public class StaminaCommand {
             .then(Commands.literal("debug")
                 .executes(context -> {
                     ServerPlayer player = context.getSource().getPlayerOrException();
-                    StaminaData cap = player.getData(StaminaAttachments.STAMINA);
+                    StaminaData cap = player.getData(StaminaCapability.STAMINA);
                     
                     StringBuilder msg = new StringBuilder("§e=== Peak Stamina Debug ===\n");
                     
@@ -159,14 +159,14 @@ public class StaminaCommand {
 
             .then(Commands.literal("reload")
                 .executes(context -> {
-                    com.peakstamina.handlers.ServerStaminaHandler.refreshAllCaches();
-                    com.peakstamina.handlers.WeightHandler.validateCache();
-                    com.peakstamina.handlers.MobStaminaHandler.refreshCache();
+                    com.peakstamina.handlers.core.ServerStaminaHandler.refreshAllCaches();
+                    com.peakstamina.handlers.mechanics.WeightHandler.validateCache();
+                    com.peakstamina.handlers.experimental.MobStaminaHandler.refreshCache();
                     
-                    com.peakstamina.handlers.CustomActionHandler.refreshCache();
+                    com.peakstamina.handlers.experimental.CustomActionHandler.refreshCache();
 
                     if (net.neoforged.fml.ModList.get().isLoaded("parcool")) {
-                        com.peakstamina.compat.ParCoolCompat.refreshCache();
+                        com.peakstamina.compat.parcool.ParCoolCompat.refreshCache();
                     }
 
                     context.getSource().sendSuccess(() -> net.minecraft.network.chat.Component.literal("§a[PeakStamina] Configs and weight caches successfully reloaded!"), true);
