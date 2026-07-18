@@ -1,8 +1,7 @@
+
 # Peak Stamina
 
 Replaces vanilla sprinting mechanics with a resource management system based on fatigue and hunger. comes with compatibility for Tough as Nails, Cold Sweat, ParCool and, Combat roll. For additional custom penalties or integrations, refer to the Advanced Features section below.
-
-For a more indepth and better formatted guide visit the [wiki!](https://github.com/Swiss8191/Peak-Stamina/wiki/Peak-Stamina-Home) Or you can scroll down and read the guide there.
 
 ----------
 
@@ -16,7 +15,11 @@ For a more indepth and better formatted guide visit the [wiki!](https://github.c
 -   **Hunger Penalty**: Low food levels reduce your maximum stamina cap.
 -   **HUD**: A custom, low-profile stamina bar with visual indicators for fatigue, poison, weight, and active penalties.
 
-![Peak Stamina HUD](https://media.forgecdn.net/attachments/description/1412640/description_71318891-81ac-4cf2-9c28-13cdc054a439.png)
+BAR mode<br>
+![Peak Stamina BAR HUD](https://media.forgecdn.net/attachments/description/1412640/description_71318891-81ac-4cf2-9c28-13cdc054a439.png)<br>
+
+ICON mode<br>
+![Peak Stamina ICON HUD](https://media.forgecdn.net/attachments/description/1412640/description_46bf56a5-512b-44fa-b4aa-39bac4ca5020.png)
 
 ----------
 
@@ -25,8 +28,7 @@ For a more indepth and better formatted guide visit the [wiki!](https://github.c
 -   **`config/peak_stamina/common.toml`**: All core gameplay values (costs, recovery, penalties).
 -   **`config/peak_stamina/lists.toml`**: Weight system, item costs, consumables, universal penalties/buffs, and exhaustion profiles.
 -   **`config/peak_stamina/client.toml`**: HUD and visual settings.
-  
--  **Note**: With the newest update (v1.8.15+) you do not need to restart your game or server to load in new values inside the config (with the exception of a few configs that need you to leave and rejoin the server/world). The new value will be adjusted automatically in-game when you save the config file.
+- **Note**: With the newest update (v2.0.0) there is now an in game config ui! You can see what it will look like in the gallery.
 ----------
 
 ## Base Settings
@@ -60,6 +62,16 @@ For a more indepth and better formatted guide visit the [wiki!](https://github.c
 * `recoveryRestMult` _(Default: `1.45`)_: Multiplier applied when standing still.
 * `recoveryClimbMult` _(Default: `0.7`)_: Multiplier applied when resting on a ladder.
 * `recoveryDelay` _(Default: `50`)_: Ticks before regeneration begins after performing an action.
+
+### Enchantments
+> These values act as multipliers. For example, `0.15` means a 15% reduction, and `0.60` means a 60% reduction.
+
+- `lightweightLvl1` _(Default: `0.25`)_: Weight reduction multiplier for the Lightweight I enchantment.
+- `lightweightLvl2` _(Default: `0.50`)_: Weight reduction multiplier for the Lightweight II enchantment.
+- `lightweightLvl3` _(Default: `0.75`)_: Weight reduction multiplier for the Lightweight III enchantment.
+- `tirelessLvl1` _(Default: `0.20`)_: Stamina cost reduction multiplier for the Tireless I enchantment.
+- `tirelessLvl2` _(Default: `0.40`)_: Stamina cost reduction multiplier for the Tireless II enchantment.
+- `tirelessLvl3` _(Default: `0.60`)_: Stamina cost reduction multiplier for the Tireless III enchantment.
 
 ### Penalties & Limits
 
@@ -250,6 +262,8 @@ Assign stamina costs to any item. Multiple cost types can be stacked on a single
 > Use a negative cost value to restore stamina during the action instead of draining it.
 
 - `itemInterruptionCooldown` _(Default: `80`)_: Cooldown in ticks if you run out of stamina while using an item.
+-   `enableAttackCooldownWhenExhausted` _(Default: `false`)_: Different from `itemInterruptionCooldown` this one targets weapons, swords, axes, etc. <br>
+-  `exhaustedAttackCooldownDuration` _(Default: `80`)_: How long the cooldown for weapons is when swung while out of stamina.   <br><br>
 
 **Format:** `"ItemId;TYPE;Cost;TYPE;Cost..."`
 **Cost types:**
@@ -636,8 +650,6 @@ customTooltips = [
 
 ### Attributes
 
-All of the following can be modified per-player via `/stamina attr <attribute> <value>`:
-
 ```
 peak_stamina:max_stamina
 peak_stamina:stamina_regen
@@ -647,28 +659,37 @@ peak_stamina:exhaustion_duration_multiplier
 peak_stamina:current_stamina
 peak_stamina:penalty_gain_multiplier
 peak_stamina:penalty_decay_multiplier
-peak_stamina:penalty_amount_multiplier
+peak_stamina:max_global_penalty_multiplier
+peak_stamina:max_fatigue_penalty_multiplier
+peak_stamina:max_hunger_penalty_multiplier
+peak_stamina:max_poison_penalty_multiplier
+peak_stamina:max_weight_penalty_multiplier
 peak_stamina:slow_climb_speed
-peak_stamina:sprint_speed
+peak_stamina:exhausted_sprint_speed
 peak_stamina:weight_limit
 peak_stamina:current_weight
 peak_stamina:weight_calculation_multiplier    # Multiplies the weight of all items
-peak_stamina:stamina_usage
+peak_stamina:global_stamina_usage
 peak_stamina:jump_cost_multiplier
 peak_stamina:sprint_cost_multiplier
 peak_stamina:attack_cost_multiplier
 peak_stamina:missed_attack_cost_multiplier
 peak_stamina:shield_block_cost_multiplier
+peak_stamina:shieldexp_parry_cost_multiplier
 peak_stamina:item_cost_multiplier
 peak_stamina:block_break_cost_multiplier
 peak_stamina:block_place_cost_multiplier
 peak_stamina:swim_cost_multiplier
 peak_stamina:climb_cost_multiplier
 peak_stamina:elytra_cost_multiplier
+peak_stamina:parcool_cost_multiplier
+peak_stamina:walljumptxf_cost_multiplier
+peak_stamina:combatroll_cost_multiplier
 peak_stamina:bonus_stamina_capacity
 peak_stamina:bonus_stamina_decay_rate
 peak_stamina:bonus_stamina_decay_delay
 peak_stamina:excess_conversion_multiplier
+peak_stamina:shieldexp_bonus_gain_multiplier
 
 ```
 
