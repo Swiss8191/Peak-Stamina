@@ -14,7 +14,7 @@ public class SprintSpeedHandler {
     public static void onLivingUpdate(LivingEvent.LivingTickEvent event) {
         if (event.getEntity() instanceof Player player) {
             if (player.isSprinting()) {
-                double sprintEffectiveness = player.getAttributeValue(StaminaAttributes.SPRINT_SPEED.get());
+                double sprintEffectiveness = player.getAttributeValue(StaminaAttributes.EXHAUSTED_SPRINT_SPEED.get());
 
                 if (sprintEffectiveness < 1.0) {
                     

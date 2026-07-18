@@ -1,17 +1,18 @@
 package com.peakstamina.network.packets.walljump;
 
+import java.util.function.Supplier;
+
 import com.peakstamina.capabilities.StaminaCapability;
-import com.peakstamina.network.packets.PacketSyncStamina;
 import com.peakstamina.compat.walljump.WallJumpCompat;
 import com.peakstamina.handlers.core.ServerStaminaHandler;
 import com.peakstamina.network.StaminaNetwork;
+import com.peakstamina.network.packets.PacketSyncStamina;
 import com.peakstamina.registry.StaminaAttributes;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.PacketDistributor;
-import java.util.function.Supplier;
 
 public class PacketWallJumpAction {
     private final String actionType;
@@ -26,13 +27,13 @@ public class PacketWallJumpAction {
             ServerPlayer player = context.getSender();
             if (player != null) {
                 player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
-                    double usageMult = ServerStaminaHandler.getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
-                    float cost = WallJumpCompat.getStartCost(actionType);
+                    double usageMult = ServerStaminaHandler.getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
+                    double wallJumpMult = ServerStaminaHandler.getAttributeValue(player, StaminaAttributes.WALLJUMPTXF_COST_MULTIPLIER.get(), 1.0);
                     
-                    // System.out.println("PEAK DEBUG [SERVER]: Received action '" + actionType + "'. Calculated Config Cost: " + cost);
+                    float cost = WallJumpCompat.getStartCost(actionType);
 
                     if (cost > 0) {
-                        ServerStaminaHandler.consumeStamina(cap, (float)(cost * usageMult));
+                        ServerStaminaHandler.consumeStamina(cap, (float)(cost * usageMult * wallJumpMult));
                         cap.staminaRegenDelay = ServerStaminaHandler.getRecoveryDelay(player);
                         
                         StaminaNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),

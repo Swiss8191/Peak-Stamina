@@ -72,6 +72,9 @@ public class StaminaConfig {
         public ForgeConfigSpec.DoubleValue depletionClimb;
         public ForgeConfigSpec.IntValue itemInterruptionCooldown;
 
+        public ForgeConfigSpec.BooleanValue enableAttackCooldownWhenExhausted;
+        public ForgeConfigSpec.IntValue exhaustedAttackCooldownDuration;
+
         public ForgeConfigSpec.BooleanValue attackCostScalesWithWeight;
         public ForgeConfigSpec.DoubleValue attackWeightNormalizer;
         public ForgeConfigSpec.DoubleValue attackWeightScaleFactor;
@@ -187,7 +190,6 @@ public class StaminaConfig {
             depletionBlockPlace = builder.comment(" Stamina drained per block placed. Set to 0.0 to disable. Set to negative to gain stamina").defineInRange("depletionBlockPlace", 0.7, -100.0, 100.0);
             depletionSwim = builder.comment(" Stamina drained per tick while swimming. Set to 0.0 to disable. Set to negative to gain stamina").defineInRange("depletionSwim", 0.05, -100.0, 100.0);
             depletionClimb = builder.comment(" Stamina drained per tick while climbing. Set to 0.0 to disable. Set to negative to gain stamina").defineInRange("depletionClimb", 0.7, -100.0, 100.0);
-            itemInterruptionCooldown = builder.comment(" Ticks to disable an item if you run out of stamina while using it.").defineInRange("itemInterruptionCooldown", 120, 0, 1200);
             builder.pop();
         }
 
@@ -204,6 +206,10 @@ public class StaminaConfig {
             missedAttackWeightScaleFactor = builder.comment(" How intensely weight affects the missed attack cost.").defineInRange("missedAttackWeightScaleFactor", 1.0, 0.0, 10.0);
             missedAttackWeightMinMultiplier = builder.comment(" The minimum possible stamina cost multiplier for missed attacks.").defineInRange("missedAttackWeightMinMultiplier", 0.4, 0.0, 1.0);
             missedAttackWeightMaxMultiplier = builder.comment(" The maximum possible stamina cost multiplier for missed attacks.").defineInRange("missedAttackWeightMaxMultiplier", 5.0, 1.0, 100.0);
+            
+            itemInterruptionCooldown = builder.comment(" Ticks to disable an item if you run out of stamina while using it. (shields and such, NOT WEAPONS)").defineInRange("itemInterruptionCooldown", 120, 0, 1200);
+            enableAttackCooldownWhenExhausted = builder.comment("", " If true, attacking or missing an attack while out of stamina puts the weapon on cooldown.").define("enableAttackCooldownWhenExhausted", false);
+            exhaustedAttackCooldownDuration = builder.comment(" Duration (in ticks) of the weapon cooldown when attacking while out of stamina.").defineInRange("exhaustedAttackCooldownDuration", 80, 0, 12000);
             builder.pop();
         }
 
@@ -390,7 +396,7 @@ public class StaminaConfig {
         public final ForgeConfigSpec.BooleanValue enableTooltips;
         public final ForgeConfigSpec.BooleanValue advancedTooltipsOnly;
         public final ForgeConfigSpec.ConfigValue<List<? extends String>> customTooltips;
-
+ 
         // Tooltip Labels
         public final ForgeConfigSpec.ConfigValue<String> labelWeight;
         public final ForgeConfigSpec.ConfigValue<String> labelAttackCost;

@@ -75,7 +75,7 @@ public class WallJumpClientCompat {
             int currentTicksClinged = wjTicksWallClingedField.getInt(null);
 
             if (currentWallJumps > prevWallJumpCount) {
-                System.out.println(">>> PEAK DEBUG [CLIENT]: WallJump detected! Sending packet to server...");
+                // System.out.println(">>> PEAK DEBUG [CLIENT]: WallJump detected! Sending packet to server...");
                 StaminaNetwork.CHANNEL.sendToServer(new PacketWallJumpAction("WallJump"));
             }
             if (currentDoubleJumps < prevDoubleJumpCount) {

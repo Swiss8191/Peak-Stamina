@@ -115,7 +115,7 @@ public class CustomActionHandler {
 
                     if (baseCost > 0) {
                         double usageMult = 1.0;
-                        AttributeInstance usageAttr = player.getAttribute(StaminaAttributes.STAMINA_USAGE.get());
+                        AttributeInstance usageAttr = player.getAttribute(StaminaAttributes.GLOBAL_STAMINA_USAGE.get());
                         if (usageAttr != null) usageMult = usageAttr.getValue();
                         finalCost = baseCost * usageMult;
                     } else {

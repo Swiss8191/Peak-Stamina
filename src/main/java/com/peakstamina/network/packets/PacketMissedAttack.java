@@ -33,6 +33,9 @@ public class PacketMissedAttack {
             if (player.isCreative() && StaminaConfig.COMMON.disableInCreative.get()) return;
             if (player.isSpectator() && StaminaConfig.COMMON.disableInSpectator.get()) return;
 
+            net.minecraft.world.item.Item weaponItem = player.getMainHandItem().getItem();
+            if (player.getCooldowns().isOnCooldown(weaponItem)) return;
+
             float cost = StaminaConfig.COMMON.depletionMissedAttack.get().floatValue();
 
             if (StaminaConfig.COMMON.missedAttackCostScalesWithWeight.get()) {
@@ -57,7 +60,7 @@ public class PacketMissedAttack {
                  player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
                      
                     double usageMult = 1.0;
-                    AttributeInstance usageAttr = player.getAttribute(StaminaAttributes.STAMINA_USAGE.get());
+                    AttributeInstance usageAttr = player.getAttribute(StaminaAttributes.GLOBAL_STAMINA_USAGE.get());
                     if (usageAttr != null) usageMult = usageAttr.getValue();
 
                     double missedMult = 1.0;
@@ -66,6 +69,7 @@ public class PacketMissedAttack {
                     
                     double finalCalculatedCost = finalBaseCost * usageMult * missedMult;
 
+                    // Consume stamina
                     ServerStaminaHandler.consumeStamina(cap, (float) finalCalculatedCost);
                     
                     if (cap.stamina < 0) cap.stamina = 0;
@@ -76,6 +80,14 @@ public class PacketMissedAttack {
                     AttributeInstance delayAttr = player.getAttribute(StaminaAttributes.REGEN_DELAY_MULTIPLIER.get());
                     if (delayAttr != null) delayMult = delayAttr.getValue();
                     cap.staminaRegenDelay = (int) (baseDelay * delayMult);
+
+                    // Apply cooldown if enabled and they are now out of stamina
+                    if (cap.stamina <= 0 && StaminaConfig.COMMON.enableAttackCooldownWhenExhausted.get()) {
+                        int cd = StaminaConfig.COMMON.exhaustedAttackCooldownDuration.get();
+                        if (cd > 0) {
+                            player.getCooldowns().addCooldown(weaponItem, cd);
+                        }
+                    }
                      
                     StaminaNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                             new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues));

@@ -88,8 +88,18 @@ public class CombatRollCompat {
         AttributeInstance instance = event.player.getAttribute(countAttr);
         if (instance == null) return;
 
+        double usageMult = 1.0;
+        AttributeInstance usageAttr = event.player.getAttribute(StaminaAttributes.GLOBAL_STAMINA_USAGE.get());
+        if (usageAttr != null) usageMult = usageAttr.getValue();
+
+        double combatRollMult = 1.0;
+        AttributeInstance combatRollAttr = event.player.getAttribute(StaminaAttributes.COMBATROLL_COST_MULTIPLIER.get());
+        if (combatRollAttr != null) combatRollMult = combatRollAttr.getValue();
+
+        double finalCost = cost * usageMult * combatRollMult;
+
         event.player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
-            boolean hasStamina = cap.stamina >= cost; 
+            boolean hasStamina = cap.stamina >= finalCost; 
             boolean hasModifier = instance.getModifier(EXHAUSTED_ROLL_UUID) != null;
 
             if (!hasStamina && !hasModifier) {
@@ -110,11 +120,16 @@ public class CombatRollCompat {
 
         serverPlayer.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
             double finalCost = cost;
+            
             double usageMult = 1.0;
-            AttributeInstance usageAttr = serverPlayer.getAttribute(StaminaAttributes.STAMINA_USAGE.get());
+            AttributeInstance usageAttr = serverPlayer.getAttribute(StaminaAttributes.GLOBAL_STAMINA_USAGE.get());
             if (usageAttr != null) usageMult = usageAttr.getValue();
             
-            finalCost *= usageMult;
+            double combatRollMult = 1.0;
+            AttributeInstance combatRollAttr = serverPlayer.getAttribute(StaminaAttributes.COMBATROLL_COST_MULTIPLIER.get());
+            if (combatRollAttr != null) combatRollMult = combatRollAttr.getValue();
+
+            finalCost *= (usageMult * combatRollMult);
 
             ServerStaminaHandler.consumeStamina(cap, (float) finalCost);
 

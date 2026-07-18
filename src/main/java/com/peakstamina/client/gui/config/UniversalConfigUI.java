@@ -14,6 +14,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.lwjgl.glfw.GLFW;
+import com.peakstamina.client.gui.CustomIconStudioScreen;
+import com.peakstamina.client.gui.CustomIconRegistry;
+import java.util.function.Function;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -110,6 +113,15 @@ public class UniversalConfigUI {
             getCat(category).add(entry); return this;
         }
 
+        public Builder addCustomAction(String category, String label, String comment,
+                                       int restartReq,
+                                       java.util.function.Function<net.minecraft.client.gui.screens.Screen,
+                                               net.minecraft.client.gui.screens.Screen> screenFactory) {
+            categories.computeIfAbsent(category, k -> new ArrayList<>())
+                    .add(new CustomActionEntry(label, comment, restartReq, screenFactory));
+            return this;
+        }
+ 
         public Builder addString(String category, String label, String comment, int restartReq, ForgeConfigSpec.ConfigValue<String> config) {
             requireArgs("addString", category, label, config);
             StringConfigEntry entry = new StringConfigEntry(label, comment, restartReq, config);
@@ -155,10 +167,17 @@ public class UniversalConfigUI {
         public void setActive(boolean active) { this.active = active; }
 
         @Override public boolean isMouseOver(double mouseX, double mouseY) {
+            Screen screen = Minecraft.getInstance().screen;
+            if (screen != null && mouseY >= screen.height - 32) return false;
+            
             return mouseX >= this.getX() && mouseX < this.getX() + this.width
                     && mouseY >= this.getY() && mouseY < this.getY() + this.height;
         }
+        
         @Override public void renderWidget(GuiGraphics gfx, int mouseX, int mouseY, float pt) {
+            Screen screen = Minecraft.getInstance().screen;
+            if (screen != null && this.getY() + this.height > screen.height - 32) return; 
+
             boolean hovered = this.isHovered();
             if (active && !isSection) {
                 gfx.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, 0x55222200);
@@ -293,6 +312,10 @@ public class UniversalConfigUI {
             this.addWidget(this.listWidget);
             rebuildList();
 
+            this.addRenderableWidget(Button.builder(Component.literal("✎ Custom Icons"), b -> {
+                Minecraft.getInstance().setScreen(new com.peakstamina.client.gui.CustomIconManagerScreen(this));
+            }).bounds(SIDEBAR_PAD, this.height - 26, SIDEBAR_W - SIDEBAR_PAD * 2, 20).build());
+
             this.addRenderableWidget(Button.builder(Component.literal("Save & Close"), b -> this.onClose())
                     .bounds(this.width / 2 - 60, this.height - 22, 120, 16).build());
         }
@@ -322,6 +345,9 @@ public class UniversalConfigUI {
             this.renderBackground(gfx);
             gfx.fill(0, 0, SIDEBAR_W, this.height, 0xAA111111);
             gfx.fill(SIDEBAR_W, 0, CONTENT_X, this.height, 0xFF282828);
+
+            gfx.fill(SIDEBAR_PAD, this.height - 32, SIDEBAR_W - SIDEBAR_PAD, this.height - 31, 0x55FFFFFF);
+            
             gfx.drawString(this.font, this.title, SIDEBAR_PAD + 2, 4, 0xFFFFAA00, false);
             this.listWidget.render(gfx, mouseX, mouseY, partialTick);
 
@@ -735,7 +761,7 @@ public class UniversalConfigUI {
         private boolean showHelp = false;
         private String validationError = "";
         private SuggestionBox suggestionBox;
-        private String savedBoxValue;
+        String savedBoxValue;
 
         public EntryEditScreen(Screen parent, String initialValue, SchemaInfo schema, String formatGuideText, Consumer<String> onSave) {
             super(Component.literal("Edit Entry"));
@@ -751,7 +777,13 @@ public class UniversalConfigUI {
             this.clearWidgets();
             int boxWidth = Math.min(400, this.width - 40);
             
-            this.editBox = new EditBox(Minecraft.getInstance().font, this.width / 2 - boxWidth / 2, 45, boxWidth, 20, Component.empty());
+            boolean hasIcon = (schema.varargType != null && schema.varargType.contains("ICON")) 
+                           || schema.strictTypes.values().stream().anyMatch(t -> t != null && t.contains("ICON"));
+
+            int editBoxW = hasIcon ? boxWidth - 105 : boxWidth;
+            int editBoxX = this.width / 2 - boxWidth / 2;
+            
+            this.editBox = new EditBox(Minecraft.getInstance().font, editBoxX, 45, editBoxW, 20, Component.empty());
             this.editBox.setMaxLength(2000);
             this.editBox.setValue(this.savedBoxValue);
             this.addRenderableWidget(this.editBox); 
@@ -759,6 +791,42 @@ public class UniversalConfigUI {
             
             this.suggestionBox = new SuggestionBox(this.editBox, this.schema, this.font);
             this.addWidget(suggestionBox); 
+
+            if (hasIcon) {
+                this.addRenderableWidget(Button.builder(Component.literal("🖼 Select Icon"), b -> {
+                    int activeArg = this.suggestionBox.getActiveArgIndex();
+                    final String textSnapshot = this.editBox.getValue();
+                    
+                    Screen current = Minecraft.getInstance().screen;
+                    Minecraft.getInstance().setScreen(
+                        new com.peakstamina.client.gui.IconPickerScreen(current, savedKey -> {
+                            String t = textSnapshot;
+                            int delimCount = 0;
+                            int aStart = 0;
+                            for (int i = 0; i < t.length(); i++) {
+                                char c = t.charAt(i);
+                                if (c == '=' || c == ',' || c == ';') {
+                                    if (delimCount == activeArg) break;
+                                    delimCount++;
+                                    aStart = i + 1;
+                                }
+                            }
+                            int aEnd = t.length();
+                            for (int i = aStart; i < t.length(); i++) {
+                                char c = t.charAt(i);
+                                if (c == '=' || c == ',' || c == ';') { aEnd = i; break; }
+                            }
+                            String newVal = t.substring(0, aStart) + savedKey + t.substring(aEnd);
+
+                            if (current instanceof EntryEditScreen ees) {
+                                ees.savedBoxValue = newVal;
+                            }
+                        })
+                    );
+                })
+                .bounds(editBoxX + editBoxW + 5, 45, 100, 20)
+                .build());
+            }
 
             this.helpWidget = new HelpTextWidget(this.minecraft, this.width, this.height, 105, this.height - 40, 14);
             if (formatGuideText != null) {
@@ -853,7 +921,7 @@ public class UniversalConfigUI {
             if (type.equals("FLOAT")) return "a Decimal Number (e.g. 1.5)";
             if (type.equals("INT")) return "a Whole Number (e.g. 5)";
             if (type.equals("COLOR")) return "a Decimal Integer (e.g. 16711680 for Red)";
-            if (type.equals("ICON")) return "a Custom UI Emoji symbol or 'none'";
+            if (type.equals("ICON")) return "Supports OS Emojis, or you can draw your own Custom Icon";
             if (type.startsWith("ENUM(")) return "Select an option from the dropdown menu.";
             if (type.equals("ANY")) return "Any string value or match parameter";
             return type;
@@ -1251,23 +1319,8 @@ public class UniversalConfigUI {
             if (type.equals("ITEM")) {
                 ForgeRegistries.ITEMS.getEntries().forEach(entry -> {
                     net.minecraft.world.item.Item item = entry.getValue();
-                    boolean isUsable = item instanceof net.minecraft.world.item.TieredItem ||
-                                       item instanceof net.minecraft.world.item.ProjectileWeaponItem ||
-                                       item instanceof net.minecraft.world.item.ShieldItem ||
-                                       item instanceof net.minecraft.world.item.ArmorItem ||
-                                       item.isEdible() ||
-                                       item instanceof net.minecraft.world.item.PotionItem ||
-                                       item instanceof net.minecraft.world.item.TridentItem ||
-                                       item instanceof net.minecraft.world.item.FishingRodItem ||
-                                       item instanceof net.minecraft.world.item.ShearsItem ||
-                                       item instanceof net.minecraft.world.item.FlintAndSteelItem ||
-                                       item instanceof net.minecraft.world.item.EnderpearlItem ||
-                                       item instanceof net.minecraft.world.item.EnderEyeItem ||
-                                       item instanceof net.minecraft.world.item.SplashPotionItem ||
-                                       item instanceof net.minecraft.world.item.LingeringPotionItem ||
-                                       item instanceof net.minecraft.world.item.CrossbowItem ||
-                                       item instanceof net.minecraft.world.item.BowItem;
-                    if (isUsable) list.add(new Suggestion(entry.getKey().location().toString(), "Usable Item", null));
+                    String desc = item instanceof net.minecraft.world.item.BlockItem ? "Block" : "Item";
+                    list.add(new Suggestion(entry.getKey().location().toString(), desc, null));
                 });
             }
             else if (type.equals("BLOCK")) ForgeRegistries.BLOCKS.getKeys().forEach(k -> list.add(new Suggestion(k.toString(), "Block", null)));
@@ -1283,12 +1336,7 @@ public class UniversalConfigUI {
                 list.add(new Suggestion("16738740", "Pink", 16738740)); list.add(new Suggestion("65535", "Cyan", 65535)); list.add(new Suggestion("32768", "Lime", 32768));
                 list.add(new Suggestion("9127187", "Brown", 9127187)); list.add(new Suggestion("16755200", "Gold", 16755200));
             } else if (type.equals("ICON")) {
-                list.add(new Suggestion("none", "Disable", null)); list.add(new Suggestion("💧", "Water", null)); list.add(new Suggestion("🔥", "Fire", null));
-                list.add(new Suggestion("❄", "Cold", null)); list.add(new Suggestion("💀", "Death", null)); list.add(new Suggestion("☣", "Poison", null));
-                list.add(new Suggestion("🛡", "Defense", null)); list.add(new Suggestion("⚡", "Energy", null)); list.add(new Suggestion("❤", "Health", null));
-                list.add(new Suggestion("🍗", "Food", null)); list.add(new Suggestion("🏹", "Ranged", null));
-                list.add(new Suggestion("🏃", "Sprint", null)); list.add(new Suggestion("🏊", "Swim", null));
-                list.add(new Suggestion("💤", "Fatigue", null));
+                list.add(new Suggestion("\u0000HEADER", "👆 Click 'Select Icon' above", null));
             } else if (type.startsWith("ENUM(")) {
                 String inner = type.substring(5, type.length() - 1);
                 for (String a : inner.split(",")) {
@@ -1300,13 +1348,46 @@ public class UniversalConfigUI {
             }
             
             String lower = currentText.toLowerCase();
-            return list.stream()
-                       .filter(s -> s.value.toLowerCase().contains(lower) || s.description.toLowerCase().contains(lower))
-                       .sorted(Comparator.comparing(s -> s.value))
-                       .collect(Collectors.toList());
+            if (type.equals("ICON")) {
+                return list.stream()
+                           .filter(s -> s.value.startsWith("\u0000") || s.value.toLowerCase().contains(lower) || s.description.toLowerCase().contains(lower))
+                           .collect(Collectors.toList());
+            } else {
+                return list.stream()
+                           .filter(s -> s.value.toLowerCase().contains(lower) || s.description.toLowerCase().contains(lower))
+                           .sorted(Comparator.comparing(s -> s.value))
+                           .collect(Collectors.toList());
+            }
         }
     }
 
+    public static class CustomActionEntry extends ConfigEntry {
+        private final Button button;
+ 
+        public CustomActionEntry(String label, String comment, int restartReq,
+                                 java.util.function.Function<Screen, Screen> screenFactory) {
+            super(label, comment, restartReq);
+            this.button = Button.builder(Component.literal("Open →"), b -> {
+                Screen current = Minecraft.getInstance().screen;
+                Minecraft.getInstance().setScreen(screenFactory.apply(current));
+            }).bounds(0, 0, 80, 20).build();
+        }
+ 
+        @Override public void save() {}
+ 
+        @Override
+        public void render(GuiGraphics gfx, int idx, int top, int left, int w, int h,
+                           int mX, int mY, boolean hover, float pt) {
+            drawLabel(gfx, left, top, w, h);
+            button.setX(left + w - 80);
+            button.setY(top);
+            button.render(gfx, mX, mY, pt);
+        }
+ 
+        @Override public List<? extends GuiEventListener>  children()   { return List.of(button); }
+        @Override public List<? extends NarratableEntry>   narratables() { return List.of(button); }
+    }
+ 
     public static class SuggestionBox implements GuiEventListener, NarratableEntry {
         private final EditBox editBox;
         private final SchemaInfo schema;
@@ -1357,6 +1438,9 @@ public class UniversalConfigUI {
                 if (differs) {
                     currentSuggestions = newSug;
                     selectedIndex = 0;
+                    while (selectedIndex < currentSuggestions.size() && currentSuggestions.get(selectedIndex).value.startsWith("\u0000HEADER")) {
+                        selectedIndex++;
+                    }
                     scrollOffset = 0;
                 }
             }
@@ -1375,13 +1459,29 @@ public class UniversalConfigUI {
         public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
             if (!isActive()) return false;
             if (keyCode == GLFW.GLFW_KEY_DOWN) {
-                selectedIndex = Math.min(currentSuggestions.size() - 1, selectedIndex + 1);
-                if (selectedIndex >= scrollOffset + maxVisible) scrollOffset++;
+                int nextIndex = selectedIndex;
+                do {
+                    nextIndex = Math.min(currentSuggestions.size() - 1, nextIndex + 1);
+                } while (nextIndex < currentSuggestions.size() - 1 && currentSuggestions.get(nextIndex).value.startsWith("\u0000HEADER"));
+                
+                if (!currentSuggestions.get(nextIndex).value.startsWith("\u0000HEADER")) {
+                    selectedIndex = nextIndex;
+                }
+                
+                if (selectedIndex >= scrollOffset + maxVisible) scrollOffset = selectedIndex - maxVisible + 1;
                 return true;
             }
             if (keyCode == GLFW.GLFW_KEY_UP) {
-                selectedIndex = Math.max(0, selectedIndex - 1);
-                if (selectedIndex < scrollOffset) scrollOffset--;
+                int prevIndex = selectedIndex;
+                do {
+                    prevIndex = Math.max(0, prevIndex - 1);
+                } while (prevIndex > 0 && currentSuggestions.get(prevIndex).value.startsWith("\u0000HEADER"));
+                
+                if (!currentSuggestions.get(prevIndex).value.startsWith("\u0000HEADER")) {
+                    selectedIndex = prevIndex;
+                }
+
+                if (selectedIndex < scrollOffset) scrollOffset = selectedIndex;
                 return true;
             }
 
@@ -1404,9 +1504,12 @@ public class UniversalConfigUI {
             if (mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h) {
                 int clickedIndex = (int) ((mouseY - y - 2) / 14);
                 if (clickedIndex >= 0 && clickedIndex < visibleCount) {
-                    selectedIndex = clickedIndex + scrollOffset;
-                    applySuggestion();
-                    return true; 
+                    int actualIndex = clickedIndex + scrollOffset;
+                    if (!currentSuggestions.get(actualIndex).value.startsWith("\u0000HEADER")) {
+                        selectedIndex = actualIndex;
+                        applySuggestion();
+                        return true; 
+                    }
                 }
             }
             return false;
@@ -1415,6 +1518,7 @@ public class UniversalConfigUI {
         private void applySuggestion() {
             if (currentSuggestions.isEmpty()) return;
             String sug = currentSuggestions.get(selectedIndex).value;
+ 
             String text = editBox.getValue();
             
             int delimiterCount = 0;
@@ -1478,8 +1582,14 @@ public class UniversalConfigUI {
                 
                 boolean isHovered = mX >= x && mX <= x + w && mY >= rowY && mY < rowY + 14;
                 
-                if (isHovered && mouseMoved) {
+                if (isHovered && mouseMoved && !sug.value.startsWith("\u0000HEADER")) {
                     selectedIndex = actualIndex;
+                }
+
+                if (sug.value.startsWith("\u0000HEADER")) {
+                    gfx.fill(x + 1, rowY, x + w - (currentSuggestions.size() > maxVisible ? 6 : 1), rowY + 14, 0xFF222222);
+                    gfx.drawCenteredString(font, sug.description, x + w / 2, rowY + 3, 0xFFFFAA00);
+                    continue;
                 }
                 
                 if (actualIndex == selectedIndex) {
@@ -1492,10 +1602,41 @@ public class UniversalConfigUI {
                     gfx.renderOutline(drawX, rowY + 3, 8, 8, 0xFF888888);
                     drawX += 12;
                 }
-                
-                gfx.drawString(font, sug.value, drawX, rowY + 3, (actualIndex == selectedIndex) ? 0xFFFFFF : 0xAAAAAA, false);
-                if (!sug.description.isEmpty()) {
-                    gfx.drawString(font, "- " + sug.description, drawX + font.width(sug.value) + 5, rowY + 3, 0xFF888888, false);
+ 
+                if (sug.value.startsWith("CUSTOM:")) {
+                    String iconName = sug.value.substring(7);
+                    com.peakstamina.client.gui.CustomIconRegistry.CustomIcon ci =
+                            com.peakstamina.client.gui.CustomIconRegistry.getAllIcons().stream()
+                                    .filter(ic -> ic.name.equals(iconName)).findFirst().orElse(null);
+                    if (ci != null) {
+                        int previewSz = 10;
+                        float scale = (float) previewSz / com.peakstamina.client.gui.CustomIconRegistry.CANVAS_SIZE;
+                        int previewY2 = rowY + (14 - previewSz) / 2;
+                        
+                        gfx.pose().pushPose();
+                        gfx.pose().translate(drawX, previewY2, 0);
+                        gfx.pose().scale(scale, scale, 1.0f);
+                        com.peakstamina.client.gui.CustomIconRegistry.drawPreview(
+                                gfx, ci.pixels, 0, 0, 1, 0xFFFFFF);
+                        gfx.pose().popPose();
+                        
+                        drawX += previewSz + 4;
+                    }
+                    
+                    int nameColor = (actualIndex == selectedIndex) ? 0xFFFFFF : 0xAAAAAA;
+                    gfx.drawString(font, sug.value, drawX, rowY + 3, nameColor, false);
+                    if (!sug.description.isEmpty()) {
+                        gfx.drawString(font, "- " + sug.description,
+                                drawX + font.width(sug.value) + 5, rowY + 3, 0xFF888888, false);
+                    }
+ 
+                } else {
+                    gfx.drawString(font, sug.value, drawX, rowY + 3,
+                            (actualIndex == selectedIndex) ? 0xFFFFFF : 0xAAAAAA, false);
+                    if (!sug.description.isEmpty()) {
+                        gfx.drawString(font, "- " + sug.description,
+                                drawX + font.width(sug.value) + 5, rowY + 3, 0xFF888888, false);
+                    }
                 }
             }
             

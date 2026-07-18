@@ -6,6 +6,7 @@ import com.peakstamina.peakStaminaMod;
 import com.peakstamina.capabilities.StaminaCapability;
 import com.peakstamina.config.StaminaConfig;
 import com.peakstamina.config.StaminaLists;
+import com.peakstamina.client.gui.CustomIconRegistry;
 import com.peakstamina.registry.StaminaAttributes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -30,10 +31,10 @@ import java.util.Map;
 @Mod.EventBusSubscriber(modid = peakStaminaMod.MODID, value = Dist.CLIENT)
 public class ClientStaminaEvents {
 
-    private static final String ICON_FATIGUE = "⚡";
-    private static final String ICON_HUNGER = "🍖";
-    private static final String ICON_POISON = "☠";
-    private static final String ICON_WEIGHT = "⚓";
+    private static final String ICON_FATIGUE = "CUSTOM:Fatigue";
+    private static final String ICON_HUNGER = "CUSTOM:Hunger";
+    private static final String ICON_POISON = "CUSTOM:Poison";
+    private static final String ICON_WEIGHT = "CUSTOM:Weight";
 
     private static float displayedStamina = 100.0f;
     private static float displayedBonusStamina = 0.0f;
@@ -252,7 +253,35 @@ public class ClientStaminaEvents {
         if (player.isSpectator() && com.peakstamina.config.StaminaConfig.COMMON.disableInSpectator.get()) {
             return;
         }
+
+        net.minecraft.world.item.Item weaponItem = player.getMainHandItem().getItem();
+        if (player.getCooldowns().isOnCooldown(weaponItem)) {
+            event.setCanceled(true);
+            return;
+        }
+
         com.peakstamina.network.StaminaNetwork.CHANNEL.sendToServer(new com.peakstamina.network.packets.PacketMissedAttack());
+    }
+
+    @SubscribeEvent
+    public static void onClickInput(net.minecraftforge.client.event.InputEvent.InteractionKeyMappingTriggered event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        
+        if (!StaminaConfig.COMMON.enableStamina.get()) return;
+        if (mc.player.isCreative() && StaminaConfig.COMMON.disableInCreative.get()) return;
+        if (mc.player.isSpectator() && StaminaConfig.COMMON.disableInSpectator.get()) return;
+
+        // Check if the interaction was an attack (left click)
+        if (event.isAttack()) {
+            net.minecraft.world.item.Item weaponItem = mc.player.getMainHandItem().getItem();
+            
+            // Cancel the input entirely if the weapon is on cooldown
+            if (mc.player.getCooldowns().isOnCooldown(weaponItem)) {
+                event.setCanceled(true);
+                event.setSwingHand(false);
+            }
+        }
     }
 
     private static void validateCache() {
@@ -788,6 +817,36 @@ public class ClientStaminaEvents {
 
     private static void drawIcon(GuiGraphics gfx, int x, int y, int w, int h, String text, int color, float alpha) {
         if (text == null || text.isEmpty()) return;
+ 
+        if (text.startsWith("CUSTOM:")) {
+            String iconName = text.substring(7);
+            
+            float idealSize = Math.max(10.0f, h * 1.25f);
+            float maxAllowed = w * 0.90f; 
+            float sizeF = Math.min(idealSize, maxAllowed);
+            
+            if (sizeF < 2.0f) return; 
+            
+            boolean isIconMode = false;
+            try {
+                isIconMode = StaminaConfig.CLIENT.hudStyle.get().name().equalsIgnoreCase("ICON");
+            } catch (Exception e) {}
+
+            // Use PoseStack float scaling to prevent nearest-neighbor bitcrushing and jittering
+            float scale = sizeF / CustomIconRegistry.CANVAS_SIZE;
+            float drawX = x + Math.max(0, (w - sizeF) / 2.0f);
+            float drawY = y + (h - sizeF) / 2.0f - (isIconMode ? 0.0f : 1.0f); 
+            
+            // The shadow is now baked directly into the custom texture, 
+            // completely eliminating the checkerboarding overlap issue!
+            gfx.pose().pushPose();
+            gfx.pose().translate(drawX, drawY, 0);
+            gfx.pose().scale(scale, scale, 1.0f);
+            CustomIconRegistry.drawIcon(gfx, 0, 0, CustomIconRegistry.CANVAS_SIZE, CustomIconRegistry.CANVAS_SIZE, iconName, color, alpha);
+            gfx.pose().popPose();
+            return;
+        }
+ 
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
         int textWidth = font.width(text);
@@ -797,7 +856,7 @@ public class ClientStaminaEvents {
         float maxScaleW = (w * 0.95f) / (float) textWidth;
         scale = Math.min(scale, maxScaleW);
         if (scale < 0.1f) return;
-
+ 
         float centerX = x + w / 2.0f;
         float centerY = y + h / 2.0f;
         gfx.pose().pushPose();
@@ -806,7 +865,7 @@ public class ClientStaminaEvents {
         float localBarHalfH = (h / scale) / 2.0f;
         float drawX = -textWidth / 2.0f;
         float drawY = localBarHalfH - fontHeight + 1.0f;
-
+ 
         int shadowColor = applyAlpha(0x88000000, alpha);
         gfx.drawString(font, text, (int) drawX - 1, (int) drawY, shadowColor, false);
         gfx.drawString(font, text, (int) drawX + 1, (int) drawY, shadowColor, false);

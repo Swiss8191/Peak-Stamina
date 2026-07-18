@@ -1,6 +1,8 @@
 package com.peakstamina.client.gui;
 
 import com.peakstamina.client.gui.config.UniversalConfigUI;
+import com.peakstamina.client.gui.CustomIconManagerScreen;
+import com.peakstamina.client.gui.CustomIconRegistry;
 import com.peakstamina.config.StaminaConfig;
 import com.peakstamina.config.StaminaConfig.Client.WeightUnit;
 import com.peakstamina.config.StaminaLists;
@@ -70,7 +72,12 @@ public class PeakConfigMenu {
             .popDependency()
 
             .beginSection("Core", "Custom Action Costs", "Override stamina costs for specific items or tag groups.")
-            .addNumber("Core", "Interruption Cooldown", "Ticks to disable an item if you run out of stamina while using it.", 0, StaminaConfig.COMMON.itemInterruptionCooldown)
+            .addNumber("Core", "Interruption Cooldown", "Ticks to disable an item if you run out of stamina while using it. (shields and such, NOT WEAPONS)", 0, StaminaConfig.COMMON.itemInterruptionCooldown)
+            .addBoolean("Core", "Enable Attack Cooldown", "If true, attacking or missing an attack while out of stamina puts the weapon on cooldown.", 0, StaminaConfig.COMMON.enableAttackCooldownWhenExhausted)
+            .pushDependency(StaminaConfig.COMMON.enableAttackCooldownWhenExhausted, "Enable Attack Cooldown")
+            .addNumber("Core", "Cooldown Duration", "Duration (in ticks) of the weapon cooldown when attacking while out of stamina (20 ticks = 1s).", 0, StaminaConfig.COMMON.exhaustedAttackCooldownDuration)
+            .popDependency()
+
             .addStringList("Core", "Custom Item Costs", 
                 "Custom Stamina Costs for Items. Priority 1\n" +
                 "Note: Arguments after the Base Cost are optional, but you can use them to chain multiple actions infinitely onto the same item!\n" +

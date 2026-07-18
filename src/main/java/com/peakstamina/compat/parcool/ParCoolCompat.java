@@ -142,20 +142,18 @@ public class ParCoolCompat {
                 float cost = getStartCost(action);
                 if (cost != 0) {
                     double finalCost;
+                    double parcoolMult = getAttributeValue(player, com.peakstamina.registry.StaminaAttributes.PARCOOL_COST_MULTIPLIER.get(), 1.0);
                     
                     if (cost > 0) {
-                        double usageMult = getAttributeValue(player, com.peakstamina.registry.StaminaAttributes.STAMINA_USAGE.get(), 1.0);
-                        finalCost = cost * usageMult;
+                        double usageMult = getAttributeValue(player, com.peakstamina.registry.StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
+                        finalCost = cost * usageMult * parcoolMult;
                     } else {
                         double actionRecoveryMult = getAttributeValue(player, com.peakstamina.registry.StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
                         finalCost = cost * actionRecoveryMult;
                     }
 
-                    cap.stamina -= (float) finalCost;
-
-                    if (cap.stamina < 0) {
-                        cap.stamina = 0;
-                    }
+                    com.peakstamina.handlers.core.ServerStaminaHandler.consumeStamina(cap, (float) finalCost);
+                    if (cap.stamina < 0) cap.stamina = 0;
 
                     if (cap.stamina > cap.maxStamina) {
                         cap.stamina = cap.maxStamina;
@@ -197,18 +195,18 @@ public class ParCoolCompat {
         float continueCost = getContinueCost(cap.currentParCoolAction);
         if (continueCost != 0) {
             double finalCost;
+            double parcoolMult = getAttributeValue(player, com.peakstamina.registry.StaminaAttributes.PARCOOL_COST_MULTIPLIER.get(), 1.0);
+            
             if (continueCost > 0) {
-                double usageMult = getAttributeValue(player, com.peakstamina.registry.StaminaAttributes.STAMINA_USAGE.get(), 1.0);
-                finalCost = continueCost * usageMult;
+                double usageMult = getAttributeValue(player, com.peakstamina.registry.StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
+                finalCost = continueCost * usageMult * parcoolMult;
             } else {
                 double actionRecoveryMult = getAttributeValue(player, com.peakstamina.registry.StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
                 finalCost = continueCost * actionRecoveryMult;
             }
 
-            cap.stamina -= (float) finalCost;
-            if (cap.stamina < 0) {
-                cap.stamina = 0;
-            }
+            com.peakstamina.handlers.core.ServerStaminaHandler.consumeStamina(cap, (float) finalCost);
+            if (cap.stamina < 0) cap.stamina = 0;
             if (cap.stamina > cap.maxStamina) {
                 cap.stamina = cap.maxStamina;
             }

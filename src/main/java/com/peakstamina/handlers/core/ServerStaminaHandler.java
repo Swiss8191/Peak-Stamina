@@ -1,48 +1,53 @@
 package com.peakstamina.handlers.core;
 
-import com.peakstamina.peakStaminaMod;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.slf4j.Logger;
+
+import com.mojang.logging.LogUtils;
 import com.peakstamina.capabilities.StaminaCapability;
+import com.peakstamina.compat.parcool.ParCoolCompat;
+import com.peakstamina.compat.walljump.WallJumpCompat;
 import com.peakstamina.config.StaminaConfig;
 import com.peakstamina.config.StaminaLists;
 import com.peakstamina.handlers.mechanics.WeightHandler;
 import com.peakstamina.network.StaminaNetwork;
 import com.peakstamina.network.packets.PacketSyncStamina;
+import com.peakstamina.peakStaminaMod;
 import com.peakstamina.registry.StaminaAttributes;
-import com.peakstamina.compat.parcool.ParCoolCompat;
-import com.peakstamina.compat.walljump.WallJumpCompat;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffect;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.block.BaseFireBlock;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ToolActions;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.event.entity.living.ShieldBlockEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.registries.ForgeRegistries;
-import com.mojang.logging.LogUtils;
-import org.slf4j.Logger;
-import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
-import net.minecraftforge.event.entity.living.ShieldBlockEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.event.level.BlockEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-
-import java.util.*;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 
 @Mod.EventBusSubscriber(modid = peakStaminaMod.MODID)
 public class ServerStaminaHandler {
@@ -341,7 +346,10 @@ public class ServerStaminaHandler {
             double bonus = weightLimitAttr / 2.0;
             double threshold = StaminaConfig.COMMON.weightPenaltyThreshold.get() + bonus;
             double limit = StaminaConfig.COMMON.weightPenaltyLimit.get() + (bonus * 2);
+            
             double maxPen = StaminaConfig.COMMON.maxWeightPenaltyAmount.get();
+            double maxWeightPenMult = getAttributeValue(player, StaminaAttributes.MAX_WEIGHT_PENALTY_MULTIPLIER.get(), 1.0);
+            maxPen *= maxWeightPenMult;
 
             float newWeightPenalty = 0.0f;
             if (effectiveWeight > threshold) {
@@ -409,11 +417,11 @@ public class ServerStaminaHandler {
             }
 
             double regenMult = getAttributeValue(player, StaminaAttributes.STAMINA_REGEN.get(), 1.0);
-            double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
+            double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
             double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
             double penaltyGainMult = getAttributeValue(player, StaminaAttributes.PENALTY_GAIN_MULTIPLIER.get(), 1.0);
             double penaltyDecayMult = getAttributeValue(player, StaminaAttributes.PENALTY_DECAY_MULTIPLIER.get(), 1.0);
-            double penaltyAmountMult = getAttributeValue(player, StaminaAttributes.PENALTY_AMOUNT_MULTIPLIER.get(), 1.0);
+            double penaltyAmountMult = getAttributeValue(player, StaminaAttributes.MAX_GLOBAL_PENALTY_MULTIPLIER.get(), 1.0);
             float minMax = StaminaConfig.COMMON.minMaxStamina.get().floatValue();
             float maxAllowedPenalty = (float) baseAttr - minMax;
             if (maxAllowedPenalty < 0) {
@@ -435,8 +443,11 @@ public class ServerStaminaHandler {
                 }
             }
 
-            float targetHungerPenalty = 0.0f;
             float maxHungerPen = StaminaConfig.COMMON.maxHungerPenalty.get().floatValue();
+            double maxHungerPenMult = getAttributeValue(player, StaminaAttributes.MAX_HUNGER_PENALTY_MULTIPLIER.get(), 1.0);
+            maxHungerPen *= (float) maxHungerPenMult;
+
+            float targetHungerPenalty = 0.0f;
             int foodLevel = player.getFoodData().getFoodLevel();
             int hungerThreshold = StaminaConfig.COMMON.hungerPenaltyThreshold.get();
             if (foodLevel <= hungerThreshold && hungerThreshold > 0) {
@@ -598,6 +609,10 @@ public class ServerStaminaHandler {
                 if (!isRecovering) {
                     float maxExertion = StaminaConfig.COMMON.maxExertionPenalty.get().floatValue();
                     maxExertion *= (float) penaltyAmountMult;
+                    
+                    double maxFatiguePenMult = getAttributeValue(player, StaminaAttributes.MAX_FATIGUE_PENALTY_MULTIPLIER.get(), 1.0);
+                    maxExertion *= (float) maxFatiguePenMult;
+                    
                     float otherPenalties = cap.currentHungerPenalty + cap.poisonPenalty + totalModPenalty + cap.weightPenalty;
                     float room = Math.max(0, maxAllowedPenalty - otherPenalties);
                     float effectiveMaxExertion = Math.min(maxExertion, room);
@@ -883,7 +898,7 @@ public class ServerStaminaHandler {
 
             if (cap.exhaustionCooldown > 0) {
                 cap.exhaustionCooldown--;
-            }
+            }    
 
             boolean isExhausted = cap.stamina <= 0 || cap.exhaustionCooldown > 0;
             updateCustomPenalties(player, isExhausted);
@@ -1046,7 +1061,7 @@ public class ServerStaminaHandler {
     }
 
     private static void updateCustomPenalties(Player player, boolean isExhausted) {
-        AttributeInstance sprintAttr = player.getAttribute(StaminaAttributes.SPRINT_SPEED.get());
+        AttributeInstance sprintAttr = player.getAttribute(StaminaAttributes.EXHAUSTED_SPRINT_SPEED.get());
         if (sprintAttr != null) {
             AttributeModifier existing = sprintAttr.getModifier(EXHAUSTED_SPEED_UUID);
             if (isExhausted) {
@@ -1113,7 +1128,7 @@ public class ServerStaminaHandler {
                 p.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
                     double finalCost;
                     if (jumpCost > 0) {
-                        double usageMult = getAttributeValue(p, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
+                        double usageMult = getAttributeValue(p, StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
                         finalCost = jumpCost * usageMult * jumpMult;
                     } else {
                         finalCost = jumpCost * actionRecoveryMult;
@@ -1147,53 +1162,61 @@ public class ServerStaminaHandler {
         if (!StaminaConfig.COMMON.enableStamina.get()) {
             return;
         }
-        if (!event.getEntity().level().isClientSide) {
-            Player player = event.getEntity();
-            if (player.isCreative() && StaminaConfig.COMMON.disableInCreative.get()) {
-                return;
-            }
-            if (player.isSpectator() && StaminaConfig.COMMON.disableInSpectator.get()) {
-                return;
-            }
-            if (hasInfiniteStamina(player)) {
-                return;
-            }
+        
+        Player player = event.getEntity();
+        if (player.isCreative() && StaminaConfig.COMMON.disableInCreative.get()) {
+            return;
+        }
+        if (player.isSpectator() && StaminaConfig.COMMON.disableInSpectator.get()) {
+            return;
+        }
+        if (hasInfiniteStamina(player)) {
+            return;
+        }
 
-            float attackCost = StaminaConfig.COMMON.depletionAttack.get().floatValue();
+        net.minecraft.world.item.Item weaponItem = player.getMainHandItem().getItem();
 
-            if (StaminaConfig.COMMON.attackCostScalesWithWeight.get()) {
-                ItemStack weapon = player.getMainHandItem();
-                double wepWeight = WeightHandler.getItemWeight(weapon, StaminaConfig.COMMON.autoWeightBase.get()) / Math.max(1, weapon.getCount());
-                
-                double normalizer = StaminaConfig.COMMON.attackWeightNormalizer.get();
-                double scaleFactor = StaminaConfig.COMMON.attackWeightScaleFactor.get();
-                double minMult = StaminaConfig.COMMON.attackWeightMinMultiplier.get();
-                double maxMult = StaminaConfig.COMMON.attackWeightMaxMultiplier.get();
+        if (player.getCooldowns().isOnCooldown(weaponItem)) {
+            event.setCanceled(true);
+            return;
+        }
 
-                double weightMult = 1.0 + (((wepWeight - normalizer) / normalizer) * scaleFactor);
-                weightMult = Math.max(minMult, Math.min(maxMult, weightMult)); 
-                attackCost *= (float) weightMult;
-            }
+        float attackCost = StaminaConfig.COMMON.depletionAttack.get().floatValue();
 
-            attackCost = applyTirelessDiscount(player.getMainHandItem(), attackCost);
+        if (StaminaConfig.COMMON.attackCostScalesWithWeight.get()) {
+            ItemStack weapon = player.getMainHandItem();
+            double wepWeight = WeightHandler.getItemWeight(weapon, StaminaConfig.COMMON.autoWeightBase.get()) / Math.max(1, weapon.getCount());
             
-            double attackMult = getAttributeValue(player, StaminaAttributes.ATTACK_COST_MULTIPLIER.get(), 1.0);
-            double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
-            
-            if (attackCost != 0) {
-                if (player.isSprinting()) {
-                    player.getPersistentData().putBoolean("peak_stamina_restore_sprint", true);
+            double normalizer = StaminaConfig.COMMON.attackWeightNormalizer.get();
+            double scaleFactor = StaminaConfig.COMMON.attackWeightScaleFactor.get();
+            double minMult = StaminaConfig.COMMON.attackWeightMinMultiplier.get();
+            double maxMult = StaminaConfig.COMMON.attackWeightMaxMultiplier.get();
+
+            double weightMult = 1.0 + (((wepWeight - normalizer) / normalizer) * scaleFactor);
+            weightMult = Math.max(minMult, Math.min(maxMult, weightMult)); 
+            attackCost *= (float) weightMult;
+        }
+
+        attackCost = applyTirelessDiscount(player.getMainHandItem(), attackCost);
+        
+        double attackMult = getAttributeValue(player, StaminaAttributes.ATTACK_COST_MULTIPLIER.get(), 1.0);
+        double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
+        
+        if (attackCost != 0) {
+            final float finalAttackCost = attackCost;
+
+            player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
+                double finalCost;
+                if (finalAttackCost > 0) {
+                    double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
+                    finalCost = finalAttackCost * usageMult * attackMult;
+                } else {
+                    finalCost = finalAttackCost * actionRecoveryMult;
                 }
 
-                final float finalAttackCost = attackCost;
-
-                player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
-                    double finalCost;
-                    if (finalAttackCost > 0) {
-                        double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
-                        finalCost = finalAttackCost * usageMult * attackMult;
-                    } else {
-                        finalCost = finalAttackCost * actionRecoveryMult;
+                if (!player.level().isClientSide) {
+                    if (player.isSprinting()) {
+                        player.getPersistentData().putBoolean("peak_stamina_restore_sprint", true);
                     }
 
                     if (finalCost > 0) {
@@ -1213,9 +1236,16 @@ public class ServerStaminaHandler {
                         cap.staminaRegenDelay = getRecoveryDelay(player);
                     }
 
+                    if (cap.stamina <= 0 && finalAttackCost > 0 && StaminaConfig.COMMON.enableAttackCooldownWhenExhausted.get()) {
+                        int cd = StaminaConfig.COMMON.exhaustedAttackCooldownDuration.get();
+                        if (cd > 0) {
+                            player.getCooldowns().addCooldown(weaponItem, cd);
+                        }
+                    }
+
                     sync((net.minecraft.server.level.ServerPlayer) player, cap);
-                });
-            }
+                }
+            });
         }
     }
 
@@ -1247,7 +1277,7 @@ public class ServerStaminaHandler {
                 final float finalBreakCost = breakCost;
                 
                 player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
-                    double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
+                    double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
                     double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
 
                     double finalCost;
@@ -1327,7 +1357,7 @@ public class ServerStaminaHandler {
 
             if (isValidAction) {
                 player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
-                    double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
+                    double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
                     double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
 
                     double finalCost;
@@ -1392,7 +1422,7 @@ public class ServerStaminaHandler {
                 player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
                     double finalCost;
                     if (placeCost > 0) {
-                        double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
+                        double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
                         finalCost = placeCost * usageMult * placeMult;
                     } else {
                         finalCost = placeCost * actionRecoveryMult;
@@ -1447,7 +1477,7 @@ public class ServerStaminaHandler {
                 double finalCost;
 
                 if (cost > 0) {
-                    double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
+                    double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
                     finalCost = cost * usageMult * useItemMult;
                 } else {
                     finalCost = cost * actionRecoveryMult;
@@ -1524,7 +1554,7 @@ public class ServerStaminaHandler {
             final float finalShieldCost = cost;
             
             player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
-                double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
+                double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
                 double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
 
                 double blockMult = getAttributeValue(player, StaminaAttributes.SHIELD_BLOCK_COST_MULTIPLIER.get(), 1.0);
@@ -1605,14 +1635,15 @@ public class ServerStaminaHandler {
             cost = applyTirelessDiscount(shieldStack, cost);
 
             if (isParrying) {
-                cost *= com.peakstamina.config.StaminaLists.LISTS.shieldExpParryMult.get();
+                double parryCostMult = getAttributeValue(player, StaminaAttributes.SHIELDEXP_PARRY_COST_MULTIPLIER.get(), 1.0);
+                cost *= (com.peakstamina.config.StaminaLists.LISTS.shieldExpParryMult.get() * parryCostMult);
             }
 
             final float finalShieldCost = cost;
 
             if (finalShieldCost != 0 || isParrying) {
                 player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
-                    double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
+                    double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
                     double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
                     double blockMult = getAttributeValue(player, StaminaAttributes.SHIELD_BLOCK_COST_MULTIPLIER.get(), 1.0);
 
@@ -1631,6 +1662,9 @@ public class ServerStaminaHandler {
 
                     if (isParrying) {
                         double bonusToAdd = com.peakstamina.config.StaminaLists.LISTS.shieldExpParryBonus.get();
+                        double bonusGainMult = getAttributeValue(player, StaminaAttributes.SHIELDEXP_BONUS_GAIN_MULTIPLIER.get(), 1.0);
+                        bonusToAdd *= bonusGainMult;
+                        
                         if (bonusToAdd > 0) {
                             cap.bonusStamina += (float) bonusToAdd;
                             double capacityMult = getAttributeValue(player, StaminaAttributes.BONUS_STAMINA_CAPACITY.get(), 1.0);
@@ -1695,7 +1729,7 @@ public class ServerStaminaHandler {
         
         if (useCost > 0 || tickCost > 0) {
             player.getCapability(StaminaCapability.INSTANCE).ifPresent(cap -> {
-                double usageMult = getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
+                double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
                 double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY.get(), 1.0);
                 double useItemMult = getAttributeValue(player, StaminaAttributes.ITEM_COST_MULTIPLIER.get(), 1.0);
 
@@ -1775,7 +1809,10 @@ public class ServerStaminaHandler {
 
             if (data.isPoison) {
                 double maxPoison = StaminaConfig.COMMON.maxPoisonPenalty.get();
-                double amount = data.poisonAmount * getAttributeValue(player, StaminaAttributes.PENALTY_AMOUNT_MULTIPLIER.get(), 1.0);
+                double maxPoisonMult = getAttributeValue(player, StaminaAttributes.MAX_POISON_PENALTY_MULTIPLIER.get(), 1.0);
+                maxPoison *= maxPoisonMult;
+                
+                double amount = data.poisonAmount * getAttributeValue(player, StaminaAttributes.MAX_GLOBAL_PENALTY_MULTIPLIER.get(), 1.0);
 
                 float minMax = StaminaConfig.COMMON.minMaxStamina.get().floatValue();
                 float maxAllowedPenalty = (float) baseAttr - minMax;

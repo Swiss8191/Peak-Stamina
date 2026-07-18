@@ -33,12 +33,10 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.event.entity.EntityAttributeModificationEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
-
 @Mod(peakStaminaMod.MODID)
 public class peakStaminaMod {
 
     public static final String MODID = "peakstamina";
-
     public peakStaminaMod() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
@@ -47,12 +45,15 @@ public class peakStaminaMod {
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, StaminaLists.LISTS_SPEC, "peakstamina/lists.toml");
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ExperimentalConfig.EXPERIMENTAL_SPEC, "peakstamina/experimental.toml");
 
-        ModLoadingContext.get().registerExtensionPoint(
-            net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
-            () -> new net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory(
-                (minecraft, parentScreen) -> com.peakstamina.client.gui.PeakConfigMenu.createScreen(parentScreen)
-            )
-        );
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            com.peakstamina.client.ClientConfigSetup.register();
+
+            modEventBus.addListener((net.minecraftforge.fml.event.config.ModConfigEvent.Loading e) -> {
+                if (e.getConfig().getType() == net.minecraftforge.fml.config.ModConfig.Type.CLIENT) {
+                    com.peakstamina.client.gui.CustomIconRegistry.reload();
+                }
+            });
+        }
 
         StaminaAttributes.ATTRIBUTES.register(modEventBus);
         com.peakstamina.registry.StaminaEnchantments.ENCHANTMENTS.register(modEventBus);
@@ -96,24 +97,27 @@ public class peakStaminaMod {
             if (net.minecraftforge.fml.ModList.get().isLoaded("walljump")) {
                 WallJumpClientCompat.init(); 
             }
-            
         }
-
     }
+
 
     private void attachAttributes(EntityAttributeModificationEvent event) {
         if (!event.has(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.MAX_STAMINA.get())) {
             event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.MAX_STAMINA.get());
         }
+
         if (!event.has(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.SLOW_CLIMB_SPEED.get())) {
             event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.SLOW_CLIMB_SPEED.get());
         }
+
         if (!event.has(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.STAMINA_REGEN.get())) {
             event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.STAMINA_REGEN.get());
         }
-        if (!event.has(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.STAMINA_USAGE.get())) {
-            event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.STAMINA_USAGE.get());
+
+        if (!event.has(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.GLOBAL_STAMINA_USAGE.get())) {
+            event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.GLOBAL_STAMINA_USAGE.get());
         }
+
         if (!event.has(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.STAMINA_ACTION_RECOVERY.get())) {
             event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.STAMINA_ACTION_RECOVERY.get());
         }
@@ -121,8 +125,8 @@ public class peakStaminaMod {
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.CURRENT_STAMINA.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.PENALTY_GAIN_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.PENALTY_DECAY_MULTIPLIER.get());
-        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.PENALTY_AMOUNT_MULTIPLIER.get());
-        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.SPRINT_SPEED.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.MAX_GLOBAL_PENALTY_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.EXHAUSTED_SPRINT_SPEED.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.WEIGHT_LIMIT.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.CURRENT_WEIGHT.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.JUMP_COST_MULTIPLIER.get());
@@ -143,6 +147,17 @@ public class peakStaminaMod {
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.BONUS_STAMINA_DECAY_RATE.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.BONUS_STAMINA_DECAY_DELAY.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.EXCESS_CONVERSION_MULTIPLIER.get());
+
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.MAX_POISON_PENALTY_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.MAX_HUNGER_PENALTY_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.MAX_FATIGUE_PENALTY_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.MAX_WEIGHT_PENALTY_MULTIPLIER.get());
+
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.COMBATROLL_COST_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.PARCOOL_COST_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.SHIELDEXP_BONUS_GAIN_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.SHIELDEXP_PARRY_COST_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.WALLJUMPTXF_COST_MULTIPLIER.get());
     }
 
     private void registerCaps(RegisterCapabilitiesEvent event) {
@@ -164,14 +179,19 @@ public class peakStaminaMod {
 
     @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
     public static class ConfigReloadHandler {
+
         @SubscribeEvent
         public static void onConfigReload(net.minecraftforge.fml.event.config.ModConfigEvent.Reloading event) {
+
             if (event.getConfig().getType() == net.minecraftforge.fml.config.ModConfig.Type.COMMON) {
-                com.peakstamina.handlers.core.ServerStaminaHandler.refreshAllCaches(); 
+                com.peakstamina.handlers.core.ServerStaminaHandler.refreshAllCaches();
             }
+
             if (event.getConfig().getType() == net.minecraftforge.fml.config.ModConfig.Type.CLIENT) {
                 com.peakstamina.client.events.ClientStaminaEvents.invalidateCache();
+                com.peakstamina.client.gui.CustomIconRegistry.reload();
             }
         }
     }
 }
+

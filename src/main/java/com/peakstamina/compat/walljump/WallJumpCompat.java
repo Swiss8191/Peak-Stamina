@@ -74,7 +74,8 @@ public class WallJumpCompat {
 
         if (!clinging && !speeding) return;
 
-        double usageMult = ServerStaminaHandler.getAttributeValue(player, StaminaAttributes.STAMINA_USAGE.get(), 1.0);
+        double usageMult = ServerStaminaHandler.getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE.get(), 1.0);
+        double wallJumpMult = ServerStaminaHandler.getAttributeValue(player, StaminaAttributes.WALLJUMPTXF_COST_MULTIPLIER.get(), 1.0);
         float totalDrain = 0f;
 
         if (clinging) totalDrain += getContinueCost("WallCling");
@@ -100,7 +101,7 @@ public class WallJumpCompat {
         }
 
         if (totalDrain > 0) {
-            ServerStaminaHandler.consumeStamina(cap, (float) (totalDrain * usageMult));
+            ServerStaminaHandler.consumeStamina(cap, (float) (totalDrain * usageMult * wallJumpMult));
             cap.staminaRegenDelay = StaminaConfig.COMMON.recoveryDelay.get();
             
             if (cap.stamina < 0) cap.stamina = 0;

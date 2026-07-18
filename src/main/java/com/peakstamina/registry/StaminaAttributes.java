@@ -1,6 +1,7 @@
 package com.peakstamina.registry;
 
 import com.peakstamina.peakStaminaMod;
+
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.RangedAttribute;
 import net.minecraftforge.registries.DeferredRegister;
@@ -39,11 +40,23 @@ public class StaminaAttributes {
     public static final RegistryObject<Attribute> PENALTY_DECAY_MULTIPLIER = ATTRIBUTES.register("penalty_decay_multiplier",
             () -> new RangedAttribute("attribute.peakstamina.penalty_decay_multiplier", 1.0D, 0.0D, 100.0D).setSyncable(true));
 
-    public static final RegistryObject<Attribute> PENALTY_AMOUNT_MULTIPLIER = ATTRIBUTES.register("penalty_amount_multiplier",
-            () -> new RangedAttribute("attribute.peakstamina.penalty_amount_multiplier", 1.0D, 0.0D, 100.0D).setSyncable(true));
+    public static final RegistryObject<Attribute> MAX_GLOBAL_PENALTY_MULTIPLIER = ATTRIBUTES.register("max_global_penalty_multiplier",
+            () -> new RangedAttribute("attribute.peakstamina.max_global_penalty_multiplier", 1.0D, 0.0D, 100.0D).setSyncable(true));
 
-    public static final RegistryObject<Attribute> SPRINT_SPEED = ATTRIBUTES.register("sprint_speed",
-            () -> new RangedAttribute("attribute.peakstamina.sprint_speed", 1.0D, 0.0D, 1024.0D).setSyncable(true));
+    public static final RegistryObject<Attribute> MAX_POISON_PENALTY_MULTIPLIER = ATTRIBUTES.register("max_poison_penalty_multiplier",
+            () -> new RangedAttribute("attribute.peakstamina.max_poison_penalty_multiplier", 1.0D, 0.0D, 100.0D).setSyncable(true));
+
+    public static final RegistryObject<Attribute> MAX_HUNGER_PENALTY_MULTIPLIER = ATTRIBUTES.register("max_hunger_penalty_multiplier",
+            () -> new RangedAttribute("attribute.peakstamina.max_hunger_penalty_multiplier", 1.0D, 0.0D, 100.0D).setSyncable(true));
+
+    public static final RegistryObject<Attribute> MAX_FATIGUE_PENALTY_MULTIPLIER = ATTRIBUTES.register("max_fatigue_penalty_multiplier",
+            () -> new RangedAttribute("attribute.peakstamina.max_fatigue_penalty_multiplier", 1.0D, 0.0D, 100.0D).setSyncable(true));
+
+    public static final RegistryObject<Attribute> MAX_WEIGHT_PENALTY_MULTIPLIER = ATTRIBUTES.register("max_weight_penalty_multiplier",
+            () -> new RangedAttribute("attribute.peakstamina.max_weight_penalty_multiplier", 1.0D, 0.0D, 100.0D).setSyncable(true));
+
+    public static final RegistryObject<Attribute> EXHAUSTED_SPRINT_SPEED = ATTRIBUTES.register("exhausted_sprint_speed",
+            () -> new RangedAttribute("attribute.peakstamina.exhausted_sprint_speed", 1.0D, 0.0D, 1024.0D).setSyncable(true));
 
     public static final RegistryObject<Attribute> CURRENT_WEIGHT = ATTRIBUTES.register("current_weight",
             () -> new RangedAttribute("attribute.peakstamina.current_weight", 0.0D, 0.0D, 10000.0D).setSyncable(true));
@@ -54,8 +67,8 @@ public class StaminaAttributes {
     public static final RegistryObject<Attribute> WEIGHT_CALC_MULTIPLIER = ATTRIBUTES.register("weight_calculation_multiplier",
             () -> new RangedAttribute("attribute.peakstamina.weight_calculation_multiplier", 1.0D, 0.0D, 100.0D).setSyncable(true));
 
-    public static final RegistryObject<Attribute> STAMINA_USAGE = ATTRIBUTES.register("stamina_usage",
-            () -> new RangedAttribute("attribute.peakstamina.stamina_usage", 1.0D, 0.0D, 1024.0D).setSyncable(true));
+    public static final RegistryObject<Attribute> GLOBAL_STAMINA_USAGE = ATTRIBUTES.register("global_stamina_usage",
+            () -> new RangedAttribute("attribute.peakstamina.global_stamina_usage", 1.0D, 0.0D, 1024.0D).setSyncable(true));
 
     public static final RegistryObject<Attribute> JUMP_COST_MULTIPLIER = ATTRIBUTES.register("jump_cost_multiplier",
             () -> new RangedAttribute("attribute.peakstamina.jump_cost_multiplier", 1.0D, 0.0D, 1024.0D).setSyncable(true));
@@ -102,4 +115,18 @@ public class StaminaAttributes {
     public static final RegistryObject<Attribute> EXCESS_CONVERSION_MULTIPLIER = ATTRIBUTES.register("excess_conversion_multiplier",
             () -> new RangedAttribute("attribute.peakstamina.excess_conversion_multiplier", 1.0D, 0.0D, 100.0D).setSyncable(true));
 
+    public static final RegistryObject<Attribute> COMBATROLL_COST_MULTIPLIER = ATTRIBUTES.register("combatroll_cost_multiplier",
+            () -> new RangedAttribute("attribute.peakstamina.combatroll_cost_multiplier", 1.0D, 0.0D, 1024.0D).setSyncable(true));
+
+    public static final RegistryObject<Attribute> PARCOOL_COST_MULTIPLIER = ATTRIBUTES.register("parcool_cost_multiplier",
+            () -> new RangedAttribute("attribute.peakstamina.parcool_cost_multiplier", 1.0D, 0.0D, 1024.0D).setSyncable(true));
+
+    public static final RegistryObject<Attribute> SHIELDEXP_BONUS_GAIN_MULTIPLIER = ATTRIBUTES.register("shieldexp_bonus_gain_multiplier",
+            () -> new RangedAttribute("attribute.peakstamina.shieldexp_bonus_gain_multiplier", 1.0D, 0.0D, 1024.0D).setSyncable(true));
+
+    public static final RegistryObject<Attribute> SHIELDEXP_PARRY_COST_MULTIPLIER = ATTRIBUTES.register("shieldexp_parry_cost_multiplier",
+            () -> new RangedAttribute("attribute.peakstamina.shieldexp_parry_cost_multiplier", 1.0D, 0.0D, 1024.0D).setSyncable(true));
+
+    public static final RegistryObject<Attribute> WALLJUMPTXF_COST_MULTIPLIER = ATTRIBUTES.register("walljumptxf_cost_multiplier",
+            () -> new RangedAttribute("attribute.peakstamina.walljumptxf_cost_multiplier", 1.0D, 0.0D, 1024.0D).setSyncable(true));
 }
