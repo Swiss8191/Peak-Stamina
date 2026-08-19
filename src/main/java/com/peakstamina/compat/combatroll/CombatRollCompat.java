@@ -1,12 +1,17 @@
 package com.peakstamina.compat.combatroll;
 
-import com.peakstamina.peakStaminaMod;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
 import com.peakstamina.capabilities.StaminaCapability;
+import com.peakstamina.config.StaminaConfig;
 import com.peakstamina.config.StaminaLists;
 import com.peakstamina.handlers.core.ServerStaminaHandler;
 import com.peakstamina.network.packets.PacketSyncStamina;
-import com.peakstamina.config.StaminaConfig;
+import com.peakstamina.peakStaminaMod;
 import com.peakstamina.registry.StaminaAttributes;
+
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -16,10 +21,6 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 
 public class CombatRollCompat {
 
@@ -138,7 +139,7 @@ public class CombatRollCompat {
         PacketDistributor.sendToPlayer(serverPlayer, new PacketSyncStamina(
             cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, 
             cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, 
-            cap.bonusStamina, cap.penaltyValues
+            cap.bonusStamina, cap.penaltyValues, cap.activeBuffs
         ));
     }
 }

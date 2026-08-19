@@ -57,7 +57,7 @@ public class PacketWallJumpAction implements CustomPacketPayload {
                 if (cap.stamina > cap.maxStamina) cap.stamina = cap.maxStamina;
 
                 PacketDistributor.sendToPlayer(player,
-                    new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues));
+                    new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues, cap.activeBuffs));
             }
         });
     }

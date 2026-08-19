@@ -13,7 +13,6 @@ import com.alrex.parcool.api.unstable.action.ParCoolActionEvent;
 import com.alrex.parcool.common.action.Action;
 import com.mojang.logging.LogUtils;
 import com.peakstamina.capabilities.StaminaCapability;
-import com.peakstamina.config.StaminaConfig;
 import com.peakstamina.config.StaminaLists;
 import com.peakstamina.data.StaminaData;
 import com.peakstamina.registry.StaminaAttributes;
@@ -94,57 +93,77 @@ public class ParCoolCompat {
     }
 
     private static float getStartCost(Action action) {
-        return startCostCache != null ? startCostCache.getOrDefault(action.getClass().getSimpleName(), 5.0f) : 5.0f;
+        String name = action.getClass().getSimpleName();
+        if (startCostCache != null && startCostCache.containsKey(name)) {
+            return startCostCache.get(name);
+        }
+        
+        short index = com.alrex.parcool.common.action.Actions.getIndexOf(action.getClass());
+        if (index >= 0 && index < com.alrex.parcool.common.action.Actions.ACTION_REGISTRIES.size()) {
+            int nativeCost = com.alrex.parcool.common.action.Actions.ACTION_REGISTRIES.get(index).getDefaultStaminaConsumption();
+            if (nativeCost == 0) return 0.0f;
+        }
+        return 0.0f; 
     }
 
-    private static float getContinueCost(String actionName) {
-        return continueCostCache != null ? continueCostCache.getOrDefault(actionName, 0.2f) : 0.2f;
+    private static float getContinueCost(Action action) {
+        String name = action.getClass().getSimpleName();
+        if (continueCostCache != null && continueCostCache.containsKey(name)) {
+            return continueCostCache.get(name);
+        }
+        
+        short index = com.alrex.parcool.common.action.Actions.getIndexOf(action.getClass());
+        if (index >= 0 && index < com.alrex.parcool.common.action.Actions.ACTION_REGISTRIES.size()) {
+            int nativeCost = com.alrex.parcool.common.action.Actions.ACTION_REGISTRIES.get(index).getDefaultStaminaConsumption();
+            if (nativeCost == 0) return 0.0f;
+        }
+        return 0.0f; 
     }
 
     @SubscribeEvent
-    public static void onParCoolTryStart(ParCoolActionEvent.TryToStartEvent event) {
+    public static void onParCoolTryStart(ParCoolActionEvent.TryToStart event) {
         Player player = event.getPlayer();
         refillParCoolStamina(player);
         if (hasInfiniteStamina(player)) return;
 
         StaminaData cap = player.getData(StaminaCapability.STAMINA);
-        if ((cap.stamina + cap.bonusStamina) <= 0) {
+        if (cap.stamina <= 0 && getStartCost(event.getAction()) > 0) {
             event.setCanceled(true);
         }
     }
 
     @SubscribeEvent
-    public static void onParCoolTryContinue(ParCoolActionEvent.TryToContinueEvent event) {
+    public static void onParCoolTryContinue(ParCoolActionEvent.TryToContinue event) {
         Player player = event.getPlayer();
         if (hasInfiniteStamina(player)) return;
 
         StaminaData cap = player.getData(StaminaCapability.STAMINA);
-        if ((cap.stamina + cap.bonusStamina) <= 0) {
-            event.setCanceled(true);
-        }
-    }
-
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onParCoolStart(ParCoolActionEvent.StartEvent event) {
-        Player player = event.getPlayer();
-        Action action = event.getAction();
-        StaminaData cap = player.getData(StaminaCapability.STAMINA);
-
-        if (!hasInfiniteStamina(player)) {
-            float cost = getStartCost(action);
-            if (cost != 0) {
+        float continueCost = getContinueCost(event.getAction());
+        
+        if (continueCost != 0) {
+            if (player.level().isClientSide) {
                 double finalCost;
-                if (cost > 0) {
+                double parcoolMult = getAttributeValue(player, StaminaAttributes.PARCOOL_COST_MULTIPLIER, 1.0);
+                
+                if (continueCost > 0) {
                     double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE, 1.0);
-                    double parcoolMult = getAttributeValue(player, StaminaAttributes.PARCOOL_COST_MULTIPLIER, 1.0);
-                    finalCost = cost * usageMult * parcoolMult;
+                    finalCost = continueCost * usageMult * parcoolMult;
                 } else {
-                    double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
-                    finalCost = cost * actionRecoveryMult;
+                    double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER, 1.0);
+                    finalCost = continueCost * actionRecoveryMult;
                 }
 
+                // Local Prediction
                 if (finalCost > 0) {
-                    com.peakstamina.handlers.core.ServerStaminaHandler.consumeStamina(cap, (float) finalCost);
+                    if (cap.bonusStamina > 0 && cap.bonusStamina >= finalCost) {
+                        cap.bonusStamina -= (float) finalCost;
+                    } else if (cap.bonusStamina > 0) {
+                        float remainder = (float) (finalCost - cap.bonusStamina);
+                        cap.bonusStamina = 0;
+                        cap.stamina -= remainder;
+                    } else {
+                        cap.stamina -= (float) finalCost;
+                    }
                 } else {
                     cap.stamina -= (float) finalCost;
                 }
@@ -152,53 +171,70 @@ public class ParCoolCompat {
                 if (cap.stamina < 0) cap.stamina = 0;
                 if (cap.stamina > cap.maxStamina) cap.stamina = cap.maxStamina;
 
-                if (cost > 0) {
-                    cap.staminaRegenDelay = StaminaConfig.COMMON.recoveryDelay.get();
+                if (continueCost >= 0) {
+                    cap.staminaRegenDelay = com.peakstamina.handlers.core.ServerStaminaHandler.getRecoveryDelay(player);
                 }
+
+                // Send sync to Server
+                net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                    new com.peakstamina.network.packets.parcool.PacketParCoolAction(continueCost)
+                );
             }
         }
-        cap.currentParCoolAction = action.getClass().getSimpleName();
+
+        if (cap.stamina <= 0 && continueCost > 0) {
+            event.setCanceled(true);
+        }
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onParCoolStop(ParCoolActionEvent.StopEvent event) {
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onParCoolStart(ParCoolActionEvent.Start.Post event) {
         Player player = event.getPlayer();
+        Action action = event.getAction();
         StaminaData cap = player.getData(StaminaCapability.STAMINA);
-        if (event.getAction().getClass().getSimpleName().equals(cap.currentParCoolAction)) {
-            cap.currentParCoolAction = null;
-        }
-    }
 
-    public static void tick(Player player, StaminaData cap) {
-        if (!isParCoolLoaded) return;
-        if (player.tickCount % REFILL_INTERVAL == 0) refillParCoolStamina(player);
+        if (!hasInfiniteStamina(player)) {
+            float cost = getStartCost(action);
+            if (cost != 0) {
+                if (player.level().isClientSide) {
+                    double finalCost;
+                    double parcoolMult = getAttributeValue(player, StaminaAttributes.PARCOOL_COST_MULTIPLIER, 1.0);
+                    
+                    if (cost > 0) {
+                        double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE, 1.0);
+                        finalCost = cost * usageMult * parcoolMult;
+                    } else {
+                        double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER, 1.0);
+                        finalCost = cost * actionRecoveryMult;
+                    }
 
-        if (cap.currentParCoolAction == null) return;
-        if (hasInfiniteStamina(player)) return;
+                    // Local Prediction
+                    if (finalCost > 0) {
+                        if (cap.bonusStamina > 0 && cap.bonusStamina >= finalCost) {
+                            cap.bonusStamina -= (float) finalCost;
+                        } else if (cap.bonusStamina > 0) {
+                            float remainder = (float) (finalCost - cap.bonusStamina);
+                            cap.bonusStamina = 0;
+                            cap.stamina -= remainder;
+                        } else {
+                            cap.stamina -= (float) finalCost;
+                        }
+                    } else {
+                        cap.stamina -= (float) finalCost;
+                    }
 
-        float continueCost = getContinueCost(cap.currentParCoolAction);
-        if (continueCost != 0) {
-            double finalCost;
-            if (continueCost > 0) {
-                double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE, 1.0);
-                double parcoolMult = getAttributeValue(player, StaminaAttributes.PARCOOL_COST_MULTIPLIER, 1.0);
-                finalCost = continueCost * usageMult * parcoolMult;
-            } else {
-                double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
-                finalCost = continueCost * actionRecoveryMult;
-            }
+                    if (cap.stamina < 0) cap.stamina = 0;
+                    if (cap.stamina > cap.maxStamina) cap.stamina = cap.maxStamina;
 
-            if (finalCost > 0) {
-                com.peakstamina.handlers.core.ServerStaminaHandler.consumeStamina(cap, (float) finalCost);
-            } else {
-                cap.stamina -= (float) finalCost;
-            }
+                    if (cost >= 0) {
+                        cap.staminaRegenDelay = com.peakstamina.handlers.core.ServerStaminaHandler.getRecoveryDelay(player);
+                    }
 
-            if (cap.stamina < 0) cap.stamina = 0;
-            if (cap.stamina > cap.maxStamina) cap.stamina = cap.maxStamina;
-
-            if (continueCost > 0) {
-                cap.staminaRegenDelay = StaminaConfig.COMMON.recoveryDelay.get();
+                    // Send sync to Server
+                    net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                        new com.peakstamina.network.packets.parcool.PacketParCoolAction(cost)
+                    );
+                }
             }
         }
     }

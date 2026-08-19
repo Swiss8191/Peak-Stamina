@@ -2,8 +2,8 @@
   "description": {
     "translate": "enchantment.peakstamina.tireless"
   },
-  "supported_items": "#peakstamina:tireless_enchantable",
-  "primary_items": "#peakstamina:tireless_enchantable",
+  "supported_items": "#peakstamina:tireless",
+  "primary_items": "#peakstamina:tireless",
   "weight": 2,
   "max_level": 3,
   "min_cost": {
@@ -14,7 +14,7 @@
     "base": 60,
     "per_level_above_first": 20
   },
-  "anvil_cost": 4,
+  "anvil_cost": 8,
   "slots": [
     "mainhand",
     "offhand"

@@ -2,8 +2,8 @@
   "description": {
     "translate": "enchantment.peakstamina.lightweight"
   },
-  "supported_items": "#minecraft:enchantable/durability",
-  "primary_items": "#minecraft:enchantable/durability",
+  "supported_items": "#peakstamina:lightweight",
+  "primary_items": "#peakstamina:lightweight",
   "weight": 5,
   "max_level": 3,
   "min_cost": {
@@ -14,13 +14,13 @@
     "base": 55,
     "per_level_above_first": 8
   },
-  "anvil_cost": 2,
+  "anvil_cost": 4,
   "slots": [
-    "mainhand",
-    "offhand",
     "head",
     "chest",
     "legs",
-    "feet"
+    "feet",
+    "mainhand",
+    "offhand"
   ]
 }

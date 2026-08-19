@@ -286,7 +286,19 @@ public class ClientStaminaEvents {
         }
     }
 
-    // NeoForge 1.21.1 HUD Hook
+    private static int brightenColor(int color, float factor) {
+        int a = (color >> 24) & 0xFF;
+        int r = (color >> 16) & 0xFF;
+        int g = (color >> 8) & 0xFF;
+        int b = color & 0xFF;
+
+        r = Math.min(255, (int) (r * factor));
+        g = Math.min(255, (int) (g * factor));
+        b = Math.min(255, (int) (b * factor));
+
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
     @SubscribeEvent
     public static void onRenderGuiLayerPost(net.neoforged.neoforge.client.event.RenderGuiLayerEvent.Post event) {
         if (!StaminaConfig.COMMON.enableStamina.get()) return;
@@ -345,6 +357,9 @@ public class ClientStaminaEvents {
         if (maxAttr != null) baseMax = (float) maxAttr.getValue();
         if (baseMax <= 0) baseMax = 100.0f;
 
+        float initialMax = StaminaConfig.COMMON.initialMaxStamina.get().floatValue();
+        if (initialMax <= 0) initialMax = 100.0f;
+
         boolean isRecentlyUsed = cap.staminaRegenDelay > 0;
         boolean hasPenalties = totalPenaltySum > 0.5f && StaminaConfig.CLIENT.autoHudShowOnPenalties.get();
         boolean isBelowThreshold = displayedStamina <= (baseMax * StaminaConfig.CLIENT.autoHudThreshold.get());
@@ -398,14 +413,22 @@ public class ClientStaminaEvents {
             isIconMode = false;
         }
 
-        int sBarW = isIconMode ? 81 : StaminaConfig.CLIENT.barWidth.get();
+        int baseBarW = isIconMode ? 81 : StaminaConfig.CLIENT.barWidth.get();
         int sBarH = isIconMode ? 10 : StaminaConfig.CLIENT.barHeight.get();
+
+        float pxScale = (float) baseBarW / Math.max(initialMax, baseMax);
+        int sBarW = (int) Math.ceil(baseMax * pxScale);
+
+        int totalIcons = 10;
+
+        int initialMaxPx = (int) (initialMax * pxScale);
+
         int offsetX = isIconMode ? StaminaConfig.CLIENT.iconXOffset.get() : StaminaConfig.CLIENT.barXOffset.get();
         int offsetY = isIconMode ? StaminaConfig.CLIENT.iconYOffset.get() : StaminaConfig.CLIENT.barYOffset.get();
-        
-        int sBarX = (width / 2) - (sBarW / 2) + offsetX + slideX;
+
+        int sBarX = (width / 2) - (baseBarW / 2) + offsetX + slideX;
         int sBarY = height - 24 - offsetY + slideY;
-        
+
         if (isIconMode) {
             sBarX = (width / 2) - 90 + offsetX + slideX;
             int healthRows = (int) Math.ceil((mc.player.getMaxHealth() + mc.player.getAbsorptionAmount()) / 20.0f);
@@ -426,20 +449,29 @@ public class ClientStaminaEvents {
         int energyCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorPenaltyHunger.get(), renderAlpha);
         int poisonCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorPenaltyPoison.get(), renderAlpha);
         int weightCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorPenaltyWeight.get(), renderAlpha);
-        int sepCol = applyAlpha(0xFFFFFFFF, renderAlpha);
+        int sepCol = applyAlpha(0xFFFFFFFF, renderAlpha); 
 
-        // 1. Draw Background
         if (isIconMode) {
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < totalIcons; i++) {
                 drawSprite(gfx, sBarX + i * 8, sBarY, "icon_empty", applyAlpha(0xFFFFFFFF, renderAlpha));
             }
         } else {
             drawDynamicFill(gfx, sBarX, sBarY, sBarW, sBarW, sBarH, "empty", applyAlpha(0xFFFFFFFF, renderAlpha), applyAlpha(0xFFFFFFFF, renderAlpha));
             int innerBgCol = applyAlpha(0xFF000000 | StaminaConfig.CLIENT.colorBackground.get(), renderAlpha);
             gfx.fill(sBarX + 1, sBarY + 1, sBarX + sBarW - 1, sBarY + sBarH - 1, innerBgCol);
+            
+            // Draw Density Tick Marks (Every 50 Stamina)
+            int tickInterval = 50;
+            if (baseMax >= tickInterval) {
+                for (int i = tickInterval; i < baseMax; i += tickInterval) {
+                    int tickX = sBarX + (int) (i * pxScale);
+                    if (tickX > sBarX && tickX < sBarX + sBarW - 1) {
+                        gfx.fill(tickX, sBarY + 1, tickX + 1, sBarY + sBarH - 1, applyAlpha(0x66000000, renderAlpha));
+                    }
+                }
+            }
         }
 
-        float pxScale = sBarW / baseMax;
         float effectivePenaltyScale = pxScale * compressionRatio;
         
         int rightCapW = isIconMode ? 1 : (textureLayout.containsKey("empty_right") ? textureLayout.get("empty_right")[2] / 2 : 2);
@@ -457,7 +489,7 @@ public class ClientStaminaEvents {
             
             if (isIconMode) {
                 gfx.enableScissor(sBarX + startX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH);
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < totalIcons; i++) {
                     drawSprite(gfx, sBarX + i * 8 + 1, sBarY + 1, "icon_penalty", stripeCol);
                 }
                 gfx.disableScissor();
@@ -477,7 +509,7 @@ public class ClientStaminaEvents {
             
             if (isIconMode) {
                 gfx.enableScissor(sBarX + startX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH);
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < totalIcons; i++) {
                     drawSprite(gfx, sBarX + i * 8 + 1, sBarY + 1, "icon_penalty", energyCol);
                 }
                 gfx.disableScissor();
@@ -497,7 +529,7 @@ public class ClientStaminaEvents {
             
             if (isIconMode) {
                 gfx.enableScissor(sBarX + startX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH);
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < totalIcons; i++) {
                     drawSprite(gfx, sBarX + i * 8 + 1, sBarY + 1, "icon_penalty", poisonCol);
                 }
                 gfx.disableScissor();
@@ -517,7 +549,7 @@ public class ClientStaminaEvents {
             
             if (isIconMode) {
                 gfx.enableScissor(sBarX + startX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH);
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < totalIcons; i++) {
                     drawSprite(gfx, sBarX + i * 8 + 1, sBarY + 1, "icon_penalty", weightCol);
                 }
                 gfx.disableScissor();
@@ -543,7 +575,7 @@ public class ClientStaminaEvents {
                     
                     if (isIconMode) {
                         gfx.enableScissor(sBarX + startX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH);
-                        for (int idx = 0; idx < 10; idx++) {
+                        for (int idx = 0; idx < totalIcons; idx++) {
                             drawSprite(gfx, sBarX + idx * 8 + 1, sBarY + 1, "icon_penalty", customCol);
                         }
                         gfx.disableScissor();
@@ -593,13 +625,41 @@ public class ClientStaminaEvents {
         // Draw Core Fill
         if (renderNormalW > 0) {
             if (isIconMode) {
-                gfx.enableScissor(sBarX, sBarY, sBarX + renderNormalW, sBarY + sBarH);
-                for (int i = 0; i < 10; i++) {
+                // Base portion
+                gfx.enableScissor(sBarX, sBarY, sBarX + Math.min(renderNormalW, initialMaxPx), sBarY + sBarH);
+                for (int i = 0; i < totalIcons; i++) {
                     drawSpriteGradient(gfx, sBarX + i * 8, sBarY, "icon_full", colorTop, colorBottom);
                 }
                 gfx.disableScissor();
+
+                // Extra portion 
+                if (initialMaxPx < renderNormalW) {
+                    gfx.enableScissor(sBarX + initialMaxPx, sBarY, sBarX + renderNormalW, sBarY + sBarH);
+                    float brightnessMult = StaminaConfig.CLIENT.extraStaminaBrightness.get().floatValue();
+                    int brightTop = brightenColor(colorTop, brightnessMult);
+                    int brightBot = brightenColor(colorBottom, brightnessMult);
+                    for (int i = 0; i < totalIcons; i++) {
+                        drawSpriteGradient(gfx, sBarX + i * 8, sBarY, "icon_full", brightTop, brightBot);
+                    }
+                    gfx.disableScissor();
+                }
             } else {
-                drawDynamicFill(gfx, sBarX, sBarY, renderNormalW, sBarW, sBarH, "fill", colorTop, colorBottom);
+                if (renderNormalW <= initialMaxPx) {
+                    drawDynamicFill(gfx, sBarX, sBarY, renderNormalW, sBarW, sBarH, "fill", colorTop, colorBottom);
+                } else {
+                    // Base portion
+                    gfx.enableScissor(sBarX, sBarY, sBarX + initialMaxPx, sBarY + sBarH);
+                    drawDynamicFill(gfx, sBarX, sBarY, renderNormalW, sBarW, sBarH, "fill", colorTop, colorBottom);
+                    gfx.disableScissor();
+
+                    // Extra portion
+                    float brightnessMult = StaminaConfig.CLIENT.extraStaminaBrightness.get().floatValue();
+                    int brightTop = brightenColor(colorTop, brightnessMult);
+                    int brightBot = brightenColor(colorBottom, brightnessMult);
+                    gfx.enableScissor(sBarX + initialMaxPx, sBarY, sBarX + renderNormalW, sBarY + sBarH);
+                    drawDynamicFill(gfx, sBarX, sBarY, renderNormalW, sBarW, sBarH, "fill", brightTop, brightBot);
+                    gfx.disableScissor();
+                }
                 
                 if (renderNormalW < currentPenaltyRightEdge) {
                     drawSpriteStretched(gfx, sBarX + renderNormalW, barInnerY, sepW, sepH, "penalty_sep", sepCol);
@@ -632,7 +692,7 @@ public class ClientStaminaEvents {
 
                 if (isIconMode) {
                     gfx.enableScissor(sBarX, sBarY, sBarX + currentPenaltyRightEdge, sBarY + sBarH);
-                    for (int i = 0; i < 10; i++) {
+                    for (int i = 0; i < totalIcons; i++) {
                         drawSpriteGradient(gfx, sBarX + i * 8, sBarY, "icon_bonus_full", underTopCol, underBotCol);
                         drawSprite(gfx, sBarX + i * 8, sBarY, "icon_bonus_full", sheenCol);
                     }
@@ -651,7 +711,7 @@ public class ClientStaminaEvents {
 
                 if (isIconMode) {
                     gfx.enableScissor(sBarX, sBarY, sBarX + remainderPx, sBarY + sBarH);
-                    for (int i = 0; i < 10; i++) {
+                    for (int i = 0; i < totalIcons; i++) {
                         drawSpriteGradient(gfx, sBarX + i * 8, sBarY, "icon_bonus_full", overTopCol, overBotCol);
                         drawSprite(gfx, sBarX + i * 8, sBarY, "icon_bonus_full", sheenCol);
                     }
@@ -659,7 +719,7 @@ public class ClientStaminaEvents {
 
                     if (remainderPx < currentPenaltyRightEdge) {
                         gfx.enableScissor(sBarX + remainderPx - 1, sBarY, sBarX + remainderPx, sBarY + sBarH);
-                        for (int i = 0; i < 10; i++) {
+                        for (int i = 0; i < totalIcons; i++) {
                             drawSprite(gfx, sBarX + i * 8, sBarY, "icon_bonus_full", sepCol);
                         }
                         gfx.disableScissor();
@@ -736,13 +796,60 @@ public class ClientStaminaEvents {
                 int targetY = isIconMode ? iconY + 5 : sBarY + (sBarH / 2) - (textHeight / 2);
 
                 if (targetX >= sBarX) {
+                    boolean drawBorder = false;
+                    try {
+                        drawBorder = StaminaConfig.CLIENT.showRegenBorder.get();
+                    } catch (Exception ignored) {}
+
                     gfx.pose().pushPose();
                     gfx.pose().translate(targetX, targetY, 0);
                     gfx.pose().scale(scale, scale, 1.0f);
-                    gfx.drawString(mc.font, regenComp, 0, 0, applyAlpha(regenColor, renderAlpha), false);
+                    gfx.drawString(mc.font, regenComp, 0, 0, applyAlpha(regenColor, renderAlpha), drawBorder);
                     gfx.pose().popPose();
                 }
             }
+        }
+
+        // Draw Numerical Overlay
+        if (StaminaConfig.CLIENT.showNumericalReadout.get()) {
+            int displayCurrent = (int) Math.ceil(cap.stamina);
+            
+            float rawPenaltySum = cap.fatiguePenalty + cap.currentHungerPenalty + cap.poisonPenalty + cap.weightPenalty;
+            if (cap.penaltyValues != null) {
+                for (float penalty : cap.penaltyValues) {
+                    rawPenaltySum += penalty;
+                }
+            }
+            
+            float minMax = StaminaConfig.COMMON.minMaxStamina.get().floatValue();
+            int displayMax = (int) Math.max(minMax, baseMax - rawPenaltySum);
+            
+            String text = displayCurrent + " / " + displayMax;
+
+            int textColor = 0xB3FFFFFF; 
+            int outlineColor = applyAlpha(0x66000000, renderAlpha); 
+
+            float scale = StaminaConfig.CLIENT.numberScale.get().floatValue();
+            int textW = (int) (mc.font.width(text) * scale);
+
+            int displayWidth = isIconMode ? (totalIcons * 8) : sBarW;
+            int displayHeight = isIconMode ? 10 : sBarH;
+            
+            int textX = sBarX + (displayWidth / 2) - (textW / 2) + StaminaConfig.CLIENT.numberXOffset.get();
+            int textY = sBarY + (displayHeight / 2) - (int)(4 * scale) + StaminaConfig.CLIENT.numberYOffset.get();
+
+            gfx.pose().pushPose();
+            gfx.pose().translate(textX, textY, 0);
+            gfx.pose().scale(scale, scale, 1.0f);
+
+            gfx.drawString(mc.font, text, -1, 0, outlineColor, false);
+            gfx.drawString(mc.font, text, 1, 0, outlineColor, false);
+            gfx.drawString(mc.font, text, 0, -1, outlineColor, false);
+            gfx.drawString(mc.font, text, 0, 1, outlineColor, false);
+
+            gfx.drawString(mc.font, text, 0, 0, applyAlpha(textColor, renderAlpha), false);
+            
+            gfx.pose().popPose();
         }
     }
 
@@ -842,6 +949,28 @@ public class ClientStaminaEvents {
     }
 
     @SubscribeEvent
+    public static void onScreenInit(net.neoforged.neoforge.client.event.ScreenEvent.Init.Post event) {
+        if (event.getScreen() instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen invScreen) {
+            int guiLeft = invScreen.getGuiLeft();
+            int guiTop = invScreen.getGuiTop();
+
+            if (StaminaConfig.CLIENT.enableActiveBuffsHUD.get()) {
+                int xOffset = StaminaConfig.CLIENT.activeBuffsXOffset.get();
+                int yOffset = StaminaConfig.CLIENT.activeBuffsYOffset.get();
+                String label = StaminaConfig.CLIENT.activeBuffsButtonLabel.get();
+
+                event.addListener(net.minecraft.client.gui.components.Button.builder(net.minecraft.network.chat.Component.literal(label), b -> {
+                    Minecraft.getInstance().setScreen(new com.peakstamina.client.gui.ActiveBuffsScreen(invScreen));
+                })
+                .bounds(guiLeft + xOffset, guiTop + yOffset, 24, 20)
+                .tooltip(net.minecraft.client.gui.components.Tooltip.create(net.minecraft.network.chat.Component.literal("Active Buffs")))
+                .build());
+            }
+
+        }
+    }
+
+    @SubscribeEvent
     public static void onScreenRender(net.neoforged.neoforge.client.event.ScreenEvent.Render.Post event) {
         if (!StaminaConfig.CLIENT.enableWeightHUD.get()) return;
         if (event.getScreen() instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen invScreen) {
@@ -907,6 +1036,11 @@ public class ClientStaminaEvents {
         if (player.isCreative() && StaminaConfig.COMMON.disableInCreative.get()) return;
         if (player.isSpectator() && StaminaConfig.COMMON.disableInSpectator.get()) return;
         
+        net.minecraft.world.item.Item weaponItem = player.getMainHandItem().getItem();
+        if (player.getCooldowns().isOnCooldown(weaponItem)) {
+            return;
+        }
+
         net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.peakstamina.network.packets.PacketMissedAttack());
     }
 

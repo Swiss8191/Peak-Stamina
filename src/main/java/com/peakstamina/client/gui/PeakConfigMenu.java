@@ -70,7 +70,7 @@ public class PeakConfigMenu {
             .popDependency()
 
             .beginSection("Core", "Custom Action Costs", "Override stamina costs for specific items or tag groups.")
-            .addNumber("Core", "Interruption Cooldown", "Ticks to disable an item if you run out of stamina while using it. (Shields and stuff, NOT WEAPONS)", 0, StaminaConfig.COMMON.itemInterruptionCooldown)
+            .addNumber("Core", "Interruption Cooldown", "Ticks to disable an item if you run out of stamina while using it. (Shields and stuff, NOT WEAPONS", 0, StaminaConfig.COMMON.itemInterruptionCooldown)
             .addBoolean("Core", "Enable Attack Cooldown", "If true, attacking or missing an attack while out of stamina puts the weapon on cooldown.", 0, StaminaConfig.COMMON.enableAttackCooldownWhenExhausted)
             .pushDependency(StaminaConfig.COMMON.enableAttackCooldownWhenExhausted, "Enable Attack Cooldown")
             .addNumber("Core", "Cooldown Duration", "Duration (in ticks) of the weapon cooldown when attacking while out of stamina (20 ticks = 1s).", 0, StaminaConfig.COMMON.exhaustedAttackCooldownDuration)
@@ -105,7 +105,7 @@ public class PeakConfigMenu {
                 "@SUGGEST[1]: Action 1 | ENUM(TICK : While using, USE : On right click, BLOCK : Blocking damage, USE_ON_BLOCK : Right click block)\n" +
                 "@SUGGEST[2]: Base Cost 1 | FLOAT\n" +
                 "@SUGGEST[*]: DYNAMIC(-2:TICK=Action {C}#-2:USE=Action {C}#-2:USE_ON_BLOCK=Action {C}#-3:BLOCK=Action {C}#-1:TICK=Cost {C}#-1:USE=Cost {C}#-1:USE_ON_BLOCK=Cost {C}#-1:BLOCK=Base Cost {C}#-2:BLOCK=Dmg Mult {C}#ANY=[OPTIONAL]) // DYNAMIC(-2:TICK=Action#-2:USE=Action#-2:USE_ON_BLOCK=Action#-3:BLOCK=Action#-1:TICK=Cost#-1:USE=Cost#-1:USE_ON_BLOCK=Cost#-1:BLOCK=Base Cost#-2:BLOCK=Multiplier#ANY=Add Action) | DYNAMIC(-2:TICK=ENUM(TICK : While using, USE : On right click, BLOCK : Blocking damage, USE_ON_BLOCK : Right click block)#-2:USE=ENUM(TICK : While using, USE : On right click, BLOCK : Blocking damage, USE_ON_BLOCK : Right click block)#-2:USE_ON_BLOCK=ENUM(TICK : While using, USE : On right click, BLOCK : Blocking damage, USE_ON_BLOCK : Right click block)#-3:BLOCK=ENUM(TICK : While using, USE : On right click, BLOCK : Blocking damage, USE_ON_BLOCK : Right click block)#ANY=FLOAT)\n" +
-                "Example: forge:tools/bows;TICK;0.5", 0, StaminaLists.LISTS.itemCostTags)
+                "Example: c:tools/bows;TICK;0.5", 0, StaminaLists.LISTS.itemCostTags)
 
             .beginSection("Core", "Elytra", "Elytra stall mechanics.")
             .addBoolean("Core", "Stall When Exhausted", "If true, players will stall (drag increases, lift decreases) when stamina hits 0.", 0, StaminaConfig.COMMON.disableElytraWhenExhausted)
@@ -117,12 +117,15 @@ public class PeakConfigMenu {
             .popDependency()
 
             .beginSection("Core", "Enchantments", "Configure the effectiveness of stamina enchantments.")
+            .addBoolean("Core", "Enable Enchantments", "Set to false to completely disable the effects and acquisition of custom Peak Stamina enchantments.", 0, StaminaConfig.COMMON.enableEnchants)
+            .pushDependency(StaminaConfig.COMMON.enableEnchants, "Enable Enchantments")
             .addNumber("Core", "Lightweight I", "Weight reduction multiplier for Lightweight I (e.g. 0.25 = 25% reduction)", 0, StaminaConfig.COMMON.lightweightLvl1)
             .addNumber("Core", "Lightweight II", "Weight reduction multiplier for Lightweight II", 0, StaminaConfig.COMMON.lightweightLvl2)
             .addNumber("Core", "Lightweight III", "Weight reduction multiplier for Lightweight III", 0, StaminaConfig.COMMON.lightweightLvl3)
             .addNumber("Core", "Tireless I", "Stamina cost reduction for Tireless I (e.g. 0.20 = 20% reduction)", 0, StaminaConfig.COMMON.tirelessLvl1)
             .addNumber("Core", "Tireless II", "Stamina cost reduction for Tireless II", 0, StaminaConfig.COMMON.tirelessLvl2)
             .addNumber("Core", "Tireless III", "Stamina cost reduction for Tireless III", 0, StaminaConfig.COMMON.tirelessLvl3)
+            .popDependency()
 
 
             // ==========================================
@@ -252,7 +255,7 @@ public class PeakConfigMenu {
                 "Format: tag_id;weight\n" +
                 "@SUGGEST[0]: Forge Tag | ANY\n" +
                 "@SUGGEST[1]: Tag Weight | FLOAT\n" +
-                "Example: forge:obsidian;1.2", 2, StaminaLists.LISTS.customTagWeights)
+                "Example: c:obsidian;1.2", 2, StaminaLists.LISTS.customTagWeights)
             .addStringList("Survival", "NBT Weight Paths", 
                 "Advanced NBT Weight Extraction for complex mod items (e.g. TACZ).\n" +
                 "This list tells the weight system exactly where to look inside the NBT data to find that true ID.\n" +
@@ -288,13 +291,14 @@ public class PeakConfigMenu {
                 "Note: Arguments after Value 1 are optional. You can chain modifiers infinitely to make complex foods (e.g., golden apples cure poison AND grant bonus stamina AND give regen).\n" +
                 "Format: modid:item_name;modifier_type;value;...\n" +
                 "@SUGGEST[0]: Item ID | ITEM\n" +
-                "@SUGGEST[1]: Mod Type 1 | ENUM(INSTANT : Restores Flat Stamina, BONUS : Grants Temp Max Stamina, REGEN : Modifies Regen Speed, POISON : Adds Food Poisoning, PENALTY : Resist Penalty Buildup, CURE : Removes Existing Penalties)\n" +
-                "@SUGGEST[2]: DYNAMIC(1:INSTANT=Restore 1#1:BONUS=Bonus 1#1:REGEN=Speed 1#1:POISON=Poison 1#1:PENALTY=Resistance 1#1:CURE=Target 1#ANY=Value 1) // DYNAMIC(1:CURE=ENUM(FATIGUE : Fatigue, HUNGER : Hunger, POISON : Poison, WEIGHT : Weight, ALL : All Penalties)#ANY=Amount) | DYNAMIC(1:CURE=ENUM(FATIGUE : Fatigue, HUNGER : Hunger, POISON : Poison, WEIGHT : Weight, ALL : All Penalties)#ANY=FLOAT)\n" +
-                "@SUGGEST[*]: DYNAMIC(-2:INSTANT=Mod {C}#-2:BONUS=Mod {C}#-2:POISON=Mod {C}#-2:PENALTY=Mod {C}#-3:REGEN=Mod {C}#-3:CURE=Mod {C}#-1:INSTANT=Restore {C}#-1:BONUS=Bonus {C}#-1:POISON=Poison {C}#-1:PENALTY=Resistance {C}#-1:REGEN=Speed {C}#-1:CURE=Target {C}#-2:REGEN=Duration {C}#-2:CURE=Amount {C}#ANY=[OPTIONAL]) // DYNAMIC(-2:INSTANT=Action#-2:BONUS=Action#-2:POISON=Action#-2:PENALTY=Action#-3:REGEN=Action#-3:CURE=Action#-1:INSTANT=Amount#-1:BONUS=Amount#-1:POISON=Amount#-1:PENALTY=Amount#-1:REGEN=Multiplier#-1:CURE=Penalty Target#-2:REGEN=Seconds#-2:CURE=Amount#ANY=Add Mod) | DYNAMIC(-2:INSTANT=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-2:BONUS=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-2:POISON=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-2:PENALTY=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-3:REGEN=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-3:CURE=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-1:CURE=ENUM(FATIGUE : Fatigue, HUNGER : Hunger, POISON : Poison, WEIGHT : Weight, ALL : All Penalties)#ANY=FLOAT)\n" +
+                "@SUGGEST[1]: Mod Type 1 | ENUM(INSTANT : Restores Flat Stamina, BONUS : Grants Temp Max Stamina, ATTRIBUTE : Temp Attribute Mod, REGEN : Modifies Regen Speed, POISON : Adds Food Poisoning, PENALTY : Resist Penalty Buildup, CURE : Removes Existing Penalties)\n" +
+                "@SUGGEST[2]: DYNAMIC(1:INSTANT=Restore 1#1:BONUS=Bonus 1#1:ATTRIBUTE=Attribute 1#1:REGEN=Speed 1#1:POISON=Poison 1#1:PENALTY=Resistance 1#1:CURE=Target 1#ANY=Value 1) // DYNAMIC(1:CURE=Target Penalty#1:ATTRIBUTE=Target Attribute#ANY=Amount) | DYNAMIC(1:CURE=ENUM(FATIGUE : Fatigue, HUNGER : Hunger, POISON : Poison, WEIGHT : Weight, ALL : All Penalties)#1:ATTRIBUTE=ATTRIBUTE#ANY=FLOAT)\n" +
+                "@SUGGEST[*]: DYNAMIC(-2:INSTANT=Mod {C}#-2:BONUS=Mod {C}#-2:POISON=Mod {C}#-2:PENALTY=Mod {C}#-3:REGEN=Mod {C}#-3:CURE=Mod {C}#-5:ATTRIBUTE=Mod {C}#-1:INSTANT=Restore {C}#-1:BONUS=Bonus {C}#-1:POISON=Poison {C}#-1:PENALTY=Resistance {C}#-1:REGEN=Speed {C}#-1:CURE=Target {C}#-1:ATTRIBUTE=Attribute {C}#-2:REGEN=Duration {C}#-2:CURE=Amount {C}#-2:ATTRIBUTE=Operation {C}#-3:ATTRIBUTE=Amount {C}#-4:ATTRIBUTE=Duration {C}#ANY=[OPTIONAL]) // DYNAMIC(-2:INSTANT=Action#-2:BONUS=Action#-2:POISON=Action#-2:PENALTY=Action#-3:REGEN=Action#-3:CURE=Action#-5:ATTRIBUTE=Action#-1:INSTANT=Amount#-1:BONUS=Amount#-1:POISON=Amount#-1:PENALTY=Amount#-1:REGEN=Multiplier#-1:CURE=Penalty Target#-1:ATTRIBUTE=Target Attribute#-2:REGEN=Seconds#-2:CURE=Amount#-2:ATTRIBUTE=0=Add 1=Base 2=Tot#-3:ATTRIBUTE=Amount#-4:ATTRIBUTE=Seconds#ANY=Add Mod) | DYNAMIC(-2:INSTANT=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, ATTRIBUTE : Temp Attribute Mod, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-2:BONUS=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, ATTRIBUTE : Temp Attribute Mod, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-2:POISON=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, ATTRIBUTE : Temp Attribute Mod, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-2:PENALTY=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, ATTRIBUTE : Temp Attribute Mod, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-3:REGEN=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, ATTRIBUTE : Temp Attribute Mod, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-3:CURE=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, ATTRIBUTE : Temp Attribute Mod, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-5:ATTRIBUTE=ENUM(INSTANT : Restores Flat, BONUS : Temp Max, ATTRIBUTE : Temp Attribute Mod, REGEN : Regen Speed, POISON : Food Poisoning, PENALTY : Resist Penalty, CURE : Cure Penalties)#-1:CURE=ENUM(FATIGUE : Fatigue, HUNGER : Hunger, POISON : Poison, WEIGHT : Weight, ALL : All Penalties)#-1:ATTRIBUTE=ATTRIBUTE#-2:ATTRIBUTE=ENUM(0 : Add, 1 : Multiply Base, 2 : Multiply Total)#-3:ATTRIBUTE=FLOAT#-4:ATTRIBUTE=INT#ANY=FLOAT)\n" +
                 "| Type | Scale | Arguments |\n" +
                 "|---|---|---|\n" +
                 "| INSTANT | FLAT | Amount to instantly restore |\n" +
                 "| BONUS | FLAT | Temporary Bonus Stamina in a secondary bar |\n" +
+                "| ATTRIBUTE | MIXED | Target Attribute; Operation (0=Add, 1=Mult Base, 2=Mult Total); Amount; Duration (Seconds) |\n" +
                 "| REGEN | PERCENT | Modifies regen speed (e.g. 0.2 = +20%); Seconds |\n" +
                 "| POISON | FLAT | Adds X points of Food Poisoning penalty |\n" +
                 "| PENALTY | PERCENT | Adds Resistance to penalty buildup |\n" +
@@ -302,7 +306,8 @@ public class PeakConfigMenu {
                 "\n" +
                 "Examples:\n" +
                 " minecraft:apple;INSTANT;10.0\n" +
-                " minecraft:golden_apple;CURE;ALL;100.0;PENALTY;50.0;REGEN;0.25;60;BONUS;50", 0, StaminaLists.LISTS.consumableValues)
+                " minecraft:golden_apple;CURE;ALL;100.0;PENALTY;50.0;REGEN;0.25;60;BONUS;50\n" +
+                " minecraft:sweet_berries;ATTRIBUTE;peakstamina:jump_cost_multiplier;1;-0.5;30", 0, StaminaLists.LISTS.consumableValues)
             .addStringList("Survival", "Infinite Stamina Effects", 
                 "List of Status Effects that grant infinite stamina (No stamina depletion)\n" +
                 "Format: modid:effect_name\n" +
@@ -369,6 +374,13 @@ public class PeakConfigMenu {
             .beginSection("Client", "HUD Layout", "Configure dimensions, style, and positioning.")
             .addEnum("Client", "HUD Style", "The style of the HUD. BAR is horizontal, ICON is vertical.", 0, StaminaConfig.CLIENT.hudStyle, StaminaConfig.Client.HudStyle.class)
             .addBoolean("Client", "Show Icons", "Whether to render text/emoji icons on the stamina bar penalty zones.", 0, StaminaConfig.CLIENT.showIcons)
+            .addBoolean("Client", "Show Numbers", "Draw a numerical text readout (e.g., 100 / 100) on the stamina HUD.", 0, StaminaConfig.CLIENT.showNumericalReadout)
+            .pushDependency(StaminaConfig.CLIENT.showNumericalReadout, "Show Numbers")
+            .addNumber("Client", "Number X Offset", "X offset for the numerical readout.", 0, StaminaConfig.CLIENT.numberXOffset)
+            .addNumber("Client", "Number Y Offset", "Y offset for the numerical readout.", 0, StaminaConfig.CLIENT.numberYOffset)
+            .addNumber("Client", "Number Scale", "Size scale for the numerical readout.", 0, StaminaConfig.CLIENT.numberScale)
+            .popDependency()
+            .addNumber("Client", "Extra Brightness", "Brightness multiplier for the extra stamina bar section.", 0, StaminaConfig.CLIENT.extraStaminaBrightness)
             .addNumber("Client", "Bar Width", "Width of the bar in pixels (Used for BAR style)", 0, StaminaConfig.CLIENT.barWidth)
             .addNumber("Client", "Bar Height", "Height of the bar in pixels (Used for BAR style)", 0, StaminaConfig.CLIENT.barHeight)
             .addNumber("Client", "Bar X Offset", "X offset for the Stamina HUD in BAR mode.", 0, StaminaConfig.CLIENT.barXOffset)
@@ -376,6 +388,7 @@ public class PeakConfigMenu {
             .addNumber("Client", "Icon X Offset", "X offset for the Stamina HUD in ICON mode.", 0, StaminaConfig.CLIENT.iconXOffset)
             .addNumber("Client", "Icon Y Offset", "Y offset for the Stamina HUD in ICON mode.", 0, StaminaConfig.CLIENT.iconYOffset)
             .addEnum("Client", "Regen Indicator Style", "Whether to use the DEFAULT (>>>), CUSTOM (textures), or OFF.", 0, StaminaConfig.CLIENT.regenIndicatorStyle, StaminaConfig.RegenIndicatorStyle.class)
+            .addBoolean("Client", "Show Regen Border", "If true, draws a slightly dark border around the regen indicators (>).", 0, StaminaConfig.CLIENT.showRegenBorder)
 
             .beginSection("Client", "Colors", "Decimal color codes for the bar elements (e.g. 16711680 is Red).")
             .addNumber("Client", "Color Background", "Color of the empty stamina track.", 0, StaminaConfig.CLIENT.colorBackground)
@@ -413,33 +426,31 @@ public class PeakConfigMenu {
             .pushDependency(StaminaConfig.CLIENT.enableWeightHUD, "Enable Weight HUD")
             .addNumber("Client", "Weight HUD X", "X position offset for the Weight HUD.", 0, StaminaConfig.CLIENT.weightXOffset)
             .addNumber("Client", "Weight HUD Y", "Y position offset for the Weight HUD.", 0, StaminaConfig.CLIENT.weightYOffset)
-            .addEnum("Client", "Weight Unit", "Choose LBS, KG, or CUSTOM.", 0, StaminaConfig.CLIENT.displayUnit, StaminaConfig.Client.WeightUnit.class)
+            .addEnum("Client", "Weight Unit", "Choose LBS, KG, or CUSTOM.", 0, StaminaConfig.CLIENT.displayUnit, WeightUnit.class)
             .addString("Client", "Custom Unit Label", "The text label to show if CUSTOM is selected.", 0, StaminaConfig.CLIENT.customUnitLabel)
             .addNumber("Client", "Custom Unit Multiplier", "The math multiplier for custom units (Base is LBS).", 0, StaminaConfig.CLIENT.customUnitMultiplier)
+            .popDependency()
+
+            .beginSection("Client", "Active Buffs UI", "Inventory button for viewing active consumable buffs.")
+            .addBoolean("Client", "Enable Buffs Button", "Enable the Active Buffs button in the inventory.", 0, StaminaConfig.CLIENT.enableActiveBuffsHUD)
+            .pushDependency(StaminaConfig.CLIENT.enableActiveBuffsHUD, "Enable Buffs Button")
+            .addNumber("Client", "Button X Offset", "X position offset for the Active Buffs button.", 0, StaminaConfig.CLIENT.activeBuffsXOffset)
+            .addNumber("Client", "Button Y Offset", "Y position offset for the Active Buffs button.", 0, StaminaConfig.CLIENT.activeBuffsYOffset)
+            .addString("Client", "Button Label", "The text/icon displayed on the Active Buffs inventory button.", 0, StaminaConfig.CLIENT.activeBuffsButtonLabel)
+            .addBoolean("Client", "Show Item Icons", "Show item icons next to attribute names in the Active Buffs screen.", 0, StaminaConfig.CLIENT.activeBuffsShowIcons)
             .popDependency()
 
             .beginSection("Client", "Tooltips & Labels", "Text to display next to values and the tooltip order.")
             .addBoolean("Client", "Enable Tooltips", "Enable stamina information on item tooltips.", 0, StaminaConfig.CLIENT.enableTooltips)
             .pushDependency(StaminaConfig.CLIENT.enableTooltips, "Enable Tooltips")
             .addBoolean("Client", "Advanced Tooltips Only", "Only show tooltips when advanced tooltips are enabled (F3+H).", 0, StaminaConfig.CLIENT.advancedTooltipsOnly)
-            .addString("Client", "Label: Weight", "Text shown before the Weight value.", 0, StaminaConfig.CLIENT.labelWeight)
-            .addString("Client", "Label: Attack", "Text shown before the Attack Cost value.", 0, StaminaConfig.CLIENT.labelAttackCost)
-            .addString("Client", "Label: Missed Attack", "Text shown before the Missed Attack Cost value.", 0, StaminaConfig.CLIENT.labelMissCost)
-            .addString("Client", "Label: Use", "Text shown before the Use Cost value.", 0, StaminaConfig.CLIENT.labelUseCost)
-            .addString("Client", "Label: Tick", "Text shown before the Tick/Active Cost value.", 0, StaminaConfig.CLIENT.labelTickCost)
-            .addString("Client", "Label: Block", "Text shown before the Block Cost value.", 0, StaminaConfig.CLIENT.labelBlockCost)
-            .addString("Client", "Label: Instant Stamina", "Text shown before the Instant Stamina value.", 0, StaminaConfig.CLIENT.labelInstant)
-            .addString("Client", "Label: Bonus Stamina", "Text shown before the Bonus Stamina value.", 0, StaminaConfig.CLIENT.labelBonus)
-            .addString("Client", "Label: Regen Modifier", "Text shown before the Regen Modifier value.", 0, StaminaConfig.CLIENT.labelRegen)
-            .addString("Client", "Label: Cures", "Text shown before the Cures value.", 0, StaminaConfig.CLIENT.labelCures)
-            .addStringList("Client", "Custom Tooltips Formatting", 
-                "Define multiple tooltips to display on items. (Order here dictates order shown in-game)\n" +
-                "Format: content;placement;label_color;value_color\n" +
-                "@SUGGEST[0]: Content | ENUM(WEIGHT : Total Weight, ATTACK_COST : Attack Cost, MISSED_ATTACK_COST : Miss Cost, USE_COST : Usage Cost, TICK_COST : Active Cost, BLOCK_COST : Blocking Cost, INSTANT_STAMINA : Stamina Recovery, BONUS_STAMINA : Bonus Max Stamina, REGEN_MODIFIER : Regen Speed Effect, CURES : Cures Penalties)\n" +
-                "@SUGGEST[1]: Placement | ENUM(BOTTOM : Draw under item tooltips, BELOW_NAME : Draw directly under item name)\n" +
-                "@SUGGEST[2]: Label Color | COLOR\n" +
-                "@SUGGEST[3]: Value Color | COLOR\n" +
-                "Example:\n WEIGHT;BOTTOM;8421504;16777215", 0, StaminaConfig.CLIENT.customTooltips)
+            .addBoolean("Client", "Color Code Buffs", "Color code attribute buffs and debuffs (Green for positive, Red for negative).", 0, StaminaConfig.CLIENT.colorCodeBuffs)
+            .addStringList("Client", "Inverted Color Attributes",
+                "List of attribute IDs where a NEGATIVE/LOWER value is considered a BUFF (colored green).\n" +
+                "Format: modid:attribute_name\n" +
+                "@SUGGEST[0]: Attribute Target | ATTRIBUTE\n" +
+                "Example: some_mod:cooldown_multiplier", 0, StaminaConfig.CLIENT.invertedTooltipAttributes)
+            .addCustomAction("Client", "✎ Edit Tooltips", "Open the Tooltip Studio to configure prefixes, suffixes, colors, and layout.", 0, currentScreen -> new com.peakstamina.client.gui.config.TooltipStudioScreen(currentScreen))
             .popDependency()
 
             // ==========================================

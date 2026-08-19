@@ -1,15 +1,15 @@
 package com.peakstamina.data;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.neoforged.neoforge.common.util.INBTSerializable;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class StaminaData implements INBTSerializable<CompoundTag> {
     public transient Map<String, Double> cachedNbtValues = new HashMap<>();
@@ -138,13 +138,19 @@ public class StaminaData implements INBTSerializable<CompoundTag> {
         public String attributeName;
         public double amount;
         public int operation;
-        public int durationTicks; 
-        
+        public int durationTicks;
+        public String sourceItemId; // registry name of the item/potion that applied this buff, or null
+
         public BuffInstance(String attr, double amt, int op, int ticks) {
+            this(attr, amt, op, ticks, null);
+        }
+
+        public BuffInstance(String attr, double amt, int op, int ticks, String sourceItemId) {
             this.attributeName = attr;
             this.amount = amt;
             this.operation = op;
             this.durationTicks = ticks;
+            this.sourceItemId = sourceItemId;
         }
         
         public CompoundTag save() {
@@ -153,6 +159,9 @@ public class StaminaData implements INBTSerializable<CompoundTag> {
             tag.putDouble("Amnt", amount);
             tag.putInt("Op", operation);
             tag.putInt("Dur", durationTicks);
+            if (sourceItemId != null) {
+                tag.putString("SrcItem", sourceItemId);
+            }
             return tag;
         }
         
@@ -161,7 +170,8 @@ public class StaminaData implements INBTSerializable<CompoundTag> {
                 tag.getString("Attr"),
                 tag.getDouble("Amnt"),
                 tag.getInt("Op"),
-                tag.getInt("Dur")
+                tag.getInt("Dur"),
+                tag.contains("SrcItem") ? tag.getString("SrcItem") : null
             );
         }
     }

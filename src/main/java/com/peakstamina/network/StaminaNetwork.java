@@ -1,21 +1,18 @@
 package com.peakstamina.network;
 
-import com.peakstamina.peakStaminaMod;
 import com.peakstamina.network.packets.PacketMissedAttack;
 import com.peakstamina.network.packets.PacketSyncStamina;
+import com.peakstamina.network.packets.parcool.PacketParCoolAction;
 import com.peakstamina.network.packets.walljump.PacketSyncWallJumpState;
 import com.peakstamina.network.packets.walljump.PacketWallJumpAction;
+import com.peakstamina.peakStaminaMod;
 
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
-@EventBusSubscriber(modid = peakStaminaMod.MODID, bus = EventBusSubscriber.Bus.MOD)
 public class StaminaNetwork {
     private static final String PROTOCOL_VERSION = "1";
 
-    @SubscribeEvent
     public static void register(final RegisterPayloadHandlersEvent event) {
         final PayloadRegistrar registrar = event.registrar(peakStaminaMod.MODID)
                 .versioned(PROTOCOL_VERSION);
@@ -42,6 +39,11 @@ public class StaminaNetwork {
                 PacketSyncWallJumpState.TYPE,
                 PacketSyncWallJumpState.STREAM_CODEC,
                 PacketSyncWallJumpState::handle
+        );
+        registrar.playToServer(
+                PacketParCoolAction.TYPE,
+                PacketParCoolAction.STREAM_CODEC,
+                PacketParCoolAction::handle
         );
     }
 }

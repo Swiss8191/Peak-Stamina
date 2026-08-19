@@ -68,7 +68,20 @@ public class ServerStaminaHandler {
     private static List<ExhaustionPenaltyData> cachedExhaustionPenalties = null;
     private static final Map<Item, Map<String, Float>> ITEM_COST_CACHE = new HashMap<>();
     private static final Map<TagKey<Item>, Map<String, Float>> TAG_COST_CACHE = new HashMap<>();
-    public static final Map<Item, ConsumableData> CONSUMABLE_CACHE = new HashMap<>();
+
+    private static class ConsumableEntry {
+        public final Item item;
+        public final CompoundTag nbt;
+        public final ConsumableData data;
+
+        public ConsumableEntry(Item item, CompoundTag nbt, ConsumableData data) {
+            this.item = item;
+            this.nbt = nbt;
+            this.data = data;
+        }
+    }
+
+    private static final List<ConsumableEntry> CONSUMABLE_CACHE = new ArrayList<>();
 
     private static class UniversalPenaltyData {
 
@@ -112,6 +125,7 @@ public class ServerStaminaHandler {
         public boolean isPoison = false;
         public boolean isBonus = false;
         public List<AbstractMap.SimpleEntry<String, Double>> specificCures = new ArrayList<>();
+        public List<StaminaData.BuffInstance> attributeBuffs = new ArrayList<>();
     }
 
     private static class ExhaustionPenaltyData {
@@ -158,7 +172,7 @@ public class ServerStaminaHandler {
     public static void sync(ServerPlayer player, StaminaData cap) {
         PacketDistributor.sendToPlayer(player, new PacketSyncStamina(
                 cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty,
-                cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues));
+                cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues, cap.activeBuffs));
     }
 
     private static boolean hasInfiniteStamina(LivingEntity entity) {
@@ -241,7 +255,21 @@ public class ServerStaminaHandler {
                     continue;
                 }
 
-                ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
+                String itemPart = parts[0].trim();
+                CompoundTag nbt = null;
+
+                if (itemPart.contains("{")) {
+                    int braceIndex = itemPart.indexOf('{');
+                    String nbtStr = itemPart.substring(braceIndex);
+                    itemPart = itemPart.substring(0, braceIndex);
+                    try {
+                        nbt = net.minecraft.nbt.TagParser.parseTag(nbtStr);
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to parse NBT for consumable: " + nbtStr, e);
+                    }
+                }
+
+                ResourceLocation loc = ResourceLocation.tryParse(itemPart);
                 if (loc != null && BuiltInRegistries.ITEM.containsKey(loc)) {
                     Item item = BuiltInRegistries.ITEM.get(loc);
                     ConsumableData data = new ConsumableData();
@@ -269,9 +297,15 @@ public class ServerStaminaHandler {
                             String target = parts[++i].trim();
                             double amount = Double.parseDouble(parts[++i].trim());
                             data.specificCures.add(new AbstractMap.SimpleEntry<>(target, amount));
+                        } else if (token.equals("ATTRIBUTE") && i + 4 < parts.length) {
+                            String attrName = parts[++i].trim();
+                            int op = (int) Double.parseDouble(parts[++i].trim());
+                            double amount = Double.parseDouble(parts[++i].trim());
+                            int durationTicks = (int) Double.parseDouble(parts[++i].trim()) * 20; 
+                            data.attributeBuffs.add(new StaminaData.BuffInstance(attrName, amount, op, durationTicks));
                         }
                     }
-                    CONSUMABLE_CACHE.put(item, data);
+                    CONSUMABLE_CACHE.add(new ConsumableEntry(item, nbt, data));
                 }
             } catch (Exception e) {
                 LOGGER.error("Failed to parse consumable modifier: " + entry, e);
@@ -334,10 +368,6 @@ public class ServerStaminaHandler {
             com.peakstamina.compat.walljump.WallJumpCompat.tick(player, cap);
         }
 
-        if (com.peakstamina.compat.parcool.ParCoolCompat.isLoaded()) {
-            com.peakstamina.compat.parcool.ParCoolCompat.tick(player, cap);
-        }
-
         if (player.getPersistentData().contains("peak_stamina_restore_sprint")) {
             player.getPersistentData().remove("peak_stamina_restore_sprint");
             if (!player.isSprinting() && !player.isCrouching()) {
@@ -345,35 +375,43 @@ public class ServerStaminaHandler {
             }
         }
 
-        if (StaminaConfig.COMMON.enableWeightSystem.get() && player.tickCount % 20 == 0) {
-            double rawWeight = WeightHandler.calculateTotalWeight(player);
-            double weightMult = getAttributeValue(player, StaminaAttributes.WEIGHT_CALC_MULTIPLIER, 1.0);
-            double effectiveWeight = rawWeight * weightMult;
+        if (player.tickCount % 20 == 0) {
+            if (StaminaConfig.COMMON.enableWeightSystem.get()) {
+                double rawWeight = WeightHandler.calculateTotalWeight(player);
+                double weightMult = getAttributeValue(player, StaminaAttributes.WEIGHT_CALC_MULTIPLIER, 1.0);
+                double effectiveWeight = rawWeight * weightMult;
 
-            AttributeInstance weightAttr = player.getAttribute(net.minecraft.core.registries.BuiltInRegistries.ATTRIBUTE.wrapAsHolder(StaminaAttributes.CURRENT_WEIGHT.get()));
-            if (weightAttr != null) {
-                weightAttr.setBaseValue(effectiveWeight);
-            }
-
-            double weightLimitAttr = getAttributeValue(player, StaminaAttributes.WEIGHT_LIMIT, 0.0);
-            double bonus = weightLimitAttr / 2.0;
-            double threshold = StaminaConfig.COMMON.weightPenaltyThreshold.get() + bonus;
-            double limit = StaminaConfig.COMMON.weightPenaltyLimit.get() + (bonus * 2);
-            double maxPen = StaminaConfig.COMMON.maxWeightPenaltyAmount.get();
-            double globalMult = getAttributeValue(player, StaminaAttributes.MAX_GLOBAL_PENALTY_MULTIPLIER, 1.0);
-            double weightMultAttr = getAttributeValue(player, StaminaAttributes.MAX_WEIGHT_PENALTY_MULTIPLIER, 1.0);
-
-            float newWeightPenalty = 0.0f;
-            if (effectiveWeight > threshold) {
-                double range = limit - threshold;
-                if (range <= 0) {
-                    range = 1.0;
+                AttributeInstance weightAttr = player.getAttribute(net.minecraft.core.registries.BuiltInRegistries.ATTRIBUTE.wrapAsHolder(StaminaAttributes.CURRENT_WEIGHT.get()));
+                if (weightAttr != null) {
+                    weightAttr.setBaseValue(effectiveWeight);
                 }
-                double excess = effectiveWeight - threshold;
-                double ratio = Mth.clamp(excess / range, 0.0, 1.0);
-                newWeightPenalty = (float) (maxPen * ratio * globalMult * weightMultAttr);
+
+                double weightLimitAttr = getAttributeValue(player, StaminaAttributes.WEIGHT_LIMIT, 0.0);
+                double bonus = weightLimitAttr / 2.0;
+                double threshold = StaminaConfig.COMMON.weightPenaltyThreshold.get() + bonus;
+                double limit = StaminaConfig.COMMON.weightPenaltyLimit.get() + (bonus * 2);
+                double maxPen = StaminaConfig.COMMON.maxWeightPenaltyAmount.get();
+                double globalMult = getAttributeValue(player, StaminaAttributes.MAX_GLOBAL_PENALTY_MULTIPLIER, 1.0);
+                double weightMultAttr = getAttributeValue(player, StaminaAttributes.MAX_WEIGHT_PENALTY_MULTIPLIER, 1.0);
+
+                float newWeightPenalty = 0.0f;
+                if (effectiveWeight > threshold) {
+                    double range = limit - threshold;
+                    if (range <= 0) {
+                        range = 1.0;
+                    }
+                    double excess = effectiveWeight - threshold;
+                    double ratio = Mth.clamp(excess / range, 0.0, 1.0);
+                    newWeightPenalty = (float) (maxPen * ratio * globalMult * weightMultAttr);
+                }
+                cap.weightPenalty = newWeightPenalty;
+            } else {
+                AttributeInstance weightAttr = player.getAttribute(net.minecraft.core.registries.BuiltInRegistries.ATTRIBUTE.wrapAsHolder(StaminaAttributes.CURRENT_WEIGHT.get()));
+                if (weightAttr != null) {
+                    weightAttr.setBaseValue(0.0);
+                }
+                cap.weightPenalty = 0.0f;
             }
-            cap.weightPenalty = newWeightPenalty;
         }
 
         if (!cap.activeBuffs.isEmpty()) {
@@ -424,7 +462,7 @@ public class ServerStaminaHandler {
 
         double regenMult = getAttributeValue(player, StaminaAttributes.STAMINA_REGEN, 1.0);
         double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE, 1.0);
-        double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
+        double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER, 1.0);
         double penaltyGainMult = getAttributeValue(player, StaminaAttributes.PENALTY_GAIN_MULTIPLIER, 1.0);
         double penaltyDecayMult = getAttributeValue(player, StaminaAttributes.PENALTY_DECAY_MULTIPLIER, 1.0);
         double penaltyAmountMult = getAttributeValue(player, StaminaAttributes.MAX_GLOBAL_PENALTY_MULTIPLIER, 1.0);
@@ -764,14 +802,13 @@ public class ServerStaminaHandler {
 
         if (player.isFallFlying() && elytraCost != 0) {
             double finalCost = elytraCost > 0 ? elytraCost * usageMult * elytraMult : elytraCost * actionRecoveryMult;
-            if (cap.stamina > 0) {
-                if (finalCost > 0) {
-                    consumeStamina(cap, (float) finalCost); 
-                }else {
-                    cap.stamina -= (float) finalCost;
-                }
-                isConsuming = elytraCost > 0;
+            if (finalCost > 0) {
+                consumeStamina(cap, (float) finalCost); 
+            } else {
+                cap.stamina -= (float) finalCost;
             }
+            isConsuming = elytraCost > 0;
+
             if (cap.stamina <= 0 && StaminaConfig.COMMON.disableElytraWhenExhausted.get()) {
                 int interval = StaminaConfig.COMMON.exhaustedElytraTickInterval.get();
                 if (player.tickCount % interval == 0) {
@@ -788,30 +825,27 @@ public class ServerStaminaHandler {
             }
         } else if (player.isSwimming() && swimCost != 0) {
             double finalCost = swimCost > 0 ? swimCost * usageMult * swimMult : swimCost * actionRecoveryMult;
-            if (cap.stamina > 0) {
-                if (finalCost > 0) {
-                    consumeStamina(cap, (float) finalCost); 
-                }else {
-                    cap.stamina -= (float) finalCost;
-                }
-                isConsuming = swimCost > 0;
+            if (finalCost > 0) {
+                consumeStamina(cap, (float) finalCost); 
+            } else {
+                cap.stamina -= (float) finalCost;
             }
+            isConsuming = swimCost > 0;
         } else if (player.onClimbable() && !player.isCrouching() && Math.abs(player.getY() - player.yo) > 0.001 && climbCost != 0) {
             double finalCost = climbCost > 0 ? climbCost * usageMult * climbMult : climbCost * actionRecoveryMult;
-            if (cap.stamina > 0) {
-                if (finalCost > 0) {
-                    consumeStamina(cap, (float) finalCost); 
-                }else {
-                    cap.stamina -= (float) finalCost;
-                }
-                isConsuming = climbCost > 0;
+            if (finalCost > 0) {
+                consumeStamina(cap, (float) finalCost); 
+            } else {
+                cap.stamina -= (float) finalCost;
             }
+            isConsuming = climbCost > 0;
         } else if (player.isSprinting() && sprintCost != 0) {
             double finalCost = sprintCost > 0 ? sprintCost * usageMult * sprintMult : sprintCost * actionRecoveryMult;
             
-            if (cap.stamina > 0) {
-                if (finalCost > 0) consumeStamina(cap, (float) finalCost);
-                else cap.stamina -= (float) finalCost;
+            if (finalCost > 0) {
+                consumeStamina(cap, (float) finalCost);
+            } else {
+                cap.stamina -= (float) finalCost;
             }
 
             isConsuming = sprintCost > 0;
@@ -1064,35 +1098,6 @@ public class ServerStaminaHandler {
                 }
             } catch (Exception ignored) {}
         }
-
-        for (ExhaustionPenaltyData data : cachedExhaustionPenalties) {
-            try {
-                if (data.isEffect) {
-                    if (isExhausted) {
-                        if (player.tickCount % 10 == 0 || !player.hasEffect(data.effect)) {
-                            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(data.effect, 25, (int) data.amount, false, false, true));
-                        }
-                    }
-                } else {
-                    AttributeInstance instance = player.getAttribute(data.attribute);
-                    if (instance == null) {
-                        continue;
-                    }
-
-                    AttributeModifier existing = instance.getModifier(data.id);
-                    if (isExhausted) {
-                        if (existing == null) {
-                            instance.addTransientModifier(new AttributeModifier(data.id, data.amount, data.operation));
-                        }
-                    } else {
-                        if (existing != null) {
-                            instance.removeModifier(data.id);
-                        }
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-        }
     }
 
     @SubscribeEvent
@@ -1113,7 +1118,7 @@ public class ServerStaminaHandler {
 
             float jumpCost = StaminaConfig.COMMON.depletionJump.get().floatValue();
             double jumpMult = getAttributeValue(p, StaminaAttributes.JUMP_COST_MULTIPLIER, 1.0);
-            double actionRecoveryMult = getAttributeValue(p, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
+            double actionRecoveryMult = getAttributeValue(p, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER, 1.0);
 
             if (jumpCost != 0) {
                 StaminaData cap = p.getData(StaminaCapability.STAMINA);
@@ -1187,7 +1192,7 @@ public class ServerStaminaHandler {
 
         attackCost = applyTirelessDiscount(player.getMainHandItem(), attackCost);
         double attackMult = getAttributeValue(player, StaminaAttributes.ATTACK_COST_MULTIPLIER, 1.0);
-        double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
+        double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER, 1.0);
 
         if (attackCost != 0) {
             if (player.isSprinting()) {
@@ -1250,7 +1255,7 @@ public class ServerStaminaHandler {
         float breakCost = StaminaConfig.COMMON.depletionBlockBreak.get().floatValue();
         breakCost = applyTirelessDiscount(player.getMainHandItem(), breakCost);
         double breakMult = getAttributeValue(player, StaminaAttributes.BLOCK_BREAK_COST_MULTIPLIER, 1.0);
-        double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
+        double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER, 1.0);
 
         if (breakCost != 0) {
             final float finalBreakCost = breakCost;
@@ -1329,7 +1334,7 @@ public class ServerStaminaHandler {
             if (isValidAction) {
                 StaminaData cap = player.getData(StaminaCapability.STAMINA);
                 double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE, 1.0);
-                double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
+                double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER, 1.0);
                 double finalCost;
 
                 if (cost > 0) {
@@ -1384,7 +1389,7 @@ public class ServerStaminaHandler {
 
             float placeCost = StaminaConfig.COMMON.depletionBlockPlace.get().floatValue();
             double placeMult = getAttributeValue(player, StaminaAttributes.BLOCK_PLACE_COST_MULTIPLIER, 1.0);
-            double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
+            double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER, 1.0);
 
             if (placeCost != 0) {
                 StaminaData cap = player.getData(StaminaCapability.STAMINA);
@@ -1435,13 +1440,14 @@ public class ServerStaminaHandler {
         float cost = applyTirelessDiscount(event.getItem(), getConfiguredItemCost(event.getItem().getItem(), "TICK"));
         if (cost != 0) {
             StaminaData cap = player.getData(StaminaCapability.STAMINA);
-            double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
+            double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER, 1.0);
             double useItemMult = getAttributeValue(player, StaminaAttributes.ITEM_COST_MULTIPLIER, 1.0);
+            double tickActionMult = getAttributeValue(player, StaminaAttributes.TICK_COST_MULTIPLIER, 1.0);
             double finalCost;
 
             if (cost > 0) {
                 double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE, 1.0);
-                finalCost = cost * usageMult * useItemMult;
+                finalCost = cost * usageMult * useItemMult * tickActionMult;
             } else {
                 finalCost = cost * actionRecoveryMult;
             }
@@ -1491,6 +1497,14 @@ public class ServerStaminaHandler {
         if (hasInfiniteStamina(player)) {
             return;
         }
+        if (!player.isBlocking()) {
+            return;
+        }
+        if (event.getDamageSource().getDirectEntity() == null || 
+            event.getDamageSource().is(net.minecraft.tags.DamageTypeTags.BYPASSES_SHIELD) || 
+            event.getDamageSource().is(net.minecraft.tags.DamageTypeTags.BYPASSES_ARMOR)) {
+            return;
+        }
 
         Item usedItem = player.getUseItem().getItem();
         if (usedItem == Items.AIR) {
@@ -1510,7 +1524,7 @@ public class ServerStaminaHandler {
         if (cost != 0) {
             final float finalShieldCost = cost;
             StaminaData cap = player.getData(StaminaCapability.STAMINA);
-            double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
+            double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER, 1.0);
             double blockMult = getAttributeValue(player, StaminaAttributes.SHIELD_BLOCK_COST_MULTIPLIER, 1.0);
             double finalCost;
 
@@ -1559,7 +1573,11 @@ public class ServerStaminaHandler {
         if (player.isSpectator() && StaminaConfig.COMMON.disableInSpectator.get()) return;
         if (hasInfiniteStamina(player)) return;
 
-        if (event.getSource().is(net.minecraft.tags.DamageTypeTags.BYPASSES_SHIELD)) return;
+        if (event.getSource().getDirectEntity() == null || 
+            event.getSource().is(net.minecraft.tags.DamageTypeTags.BYPASSES_SHIELD) || 
+            event.getSource().is(net.minecraft.tags.DamageTypeTags.BYPASSES_ARMOR)) {
+            return;
+        }
 
         boolean isParrying = com.peakstamina.compat.shieldexp.ShieldExpansionCompat.isParrying(player);
         boolean isBlocking = player.isBlocking();
@@ -1596,7 +1614,7 @@ public class ServerStaminaHandler {
 
         StaminaData cap = player.getData(StaminaCapability.STAMINA);
         double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE, 1.0);
-        double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
+        double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER, 1.0);
         double blockMult = getAttributeValue(player, StaminaAttributes.SHIELD_BLOCK_COST_MULTIPLIER, 1.0);
 
         double finalCostCalc = 0;
@@ -1669,11 +1687,13 @@ public class ServerStaminaHandler {
         if (useCost > 0 || tickCost > 0) {
             StaminaData cap = player.getData(StaminaCapability.STAMINA);
             double usageMult = getAttributeValue(player, StaminaAttributes.GLOBAL_STAMINA_USAGE, 1.0);
-            double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY, 1.0);
+            double actionRecoveryMult = getAttributeValue(player, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER, 1.0);
             double useItemMult = getAttributeValue(player, StaminaAttributes.ITEM_COST_MULTIPLIER, 1.0);
+            double useActionMult = getAttributeValue(player, StaminaAttributes.USE_COST_MULTIPLIER, 1.0);
+            double tickActionMult = getAttributeValue(player, StaminaAttributes.TICK_COST_MULTIPLIER, 1.0);
 
             if (useCost != 0) {
-                double totalCost = useCost > 0 ? useCost * usageMult * useItemMult : useCost * actionRecoveryMult;
+                double totalCost = useCost > 0 ? useCost * usageMult * useItemMult * useActionMult : useCost * actionRecoveryMult;
                 float totalAvailable = cap.stamina + cap.bonusStamina;
 
                 if (useCost > 0 && totalAvailable < totalCost) {
@@ -1697,7 +1717,7 @@ public class ServerStaminaHandler {
             }
 
             if (tickCost > 0) {
-                double totalTickCost = tickCost * usageMult * useItemMult;
+                double totalTickCost = tickCost * usageMult * useItemMult * tickActionMult;
                 float totalAvailable = cap.stamina + cap.bonusStamina;
 
                 if (totalAvailable < totalTickCost) {
@@ -1723,12 +1743,13 @@ public class ServerStaminaHandler {
             return;
         }
 
-        Item item = event.getItem().getItem();
-        if (!CONSUMABLE_CACHE.containsKey(item)) {
+        ItemStack stack = event.getItem();
+        ConsumableData data = getConsumableData(stack);
+        if (data == null) {
             return;
         }
 
-        ConsumableData data = CONSUMABLE_CACHE.get(item);
+        String sourceItemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
         StaminaData cap = player.getData(StaminaCapability.STAMINA);
         double baseAttr = 100.0;
         AttributeInstance attr = player.getAttribute(net.minecraft.core.registries.BuiltInRegistries.ATTRIBUTE.wrapAsHolder(StaminaAttributes.MAX_STAMINA.get()));
@@ -1771,24 +1792,8 @@ public class ServerStaminaHandler {
             String attrName = "peakstamina:penalty_gain_multiplier";
             int op = 1; 
 
-            StaminaData.BuffInstance existingBuff = null;
-            for (StaminaData.BuffInstance b : cap.activeBuffs) {
-                if (b.attributeName.equals(attrName)) {
-                    existingBuff = b;
-                    break;
-                }
-            }
-
-            boolean shouldApply = existingBuff == null || modifierValue < existingBuff.amount;
-            if (shouldApply) {
-                if (existingBuff != null) {
-                    cap.activeBuffs.remove(existingBuff);
-                    removeBuffModifier(player, existingBuff);
-                }
-                StaminaData.BuffInstance newBuff = new StaminaData.BuffInstance(attrName, modifierValue, op, finalPenDuration);
-                cap.activeBuffs.add(newBuff);
-                applyBuffModifier(player, newBuff);
-            }
+            StaminaData.BuffInstance newBuff = new StaminaData.BuffInstance(attrName, modifierValue, op, finalPenDuration, sourceItemId);
+            applyOrUpdateBuff(player, cap, newBuff);
         }
 
         for (AbstractMap.SimpleEntry<String, Double> cure : data.specificCures) {
@@ -1801,6 +1806,9 @@ public class ServerStaminaHandler {
                 cap.poisonPenalty = Math.max(0.0f, cap.poisonPenalty - amount);
                 if (cap.penaltyValues != null) {
                     for (int i = 0; i < cap.penaltyValues.length; i++) {
+                        if (i < cachedUniversalPenalties.size() && cachedUniversalPenalties.get(i).isInstant) {
+                            continue;
+                        }
                         cap.penaltyValues[i] = Math.max(0.0f, cap.penaltyValues[i] - amount);
                     }
                 }
@@ -1884,37 +1892,16 @@ public class ServerStaminaHandler {
             String attrName = "peakstamina:stamina_regen";
             int op = 1;
 
-            StaminaData.BuffInstance existingBuff = null;
-            for (StaminaData.BuffInstance b : cap.activeBuffs) {
-                if (b.attributeName.equals(attrName)) {
-                    existingBuff = b;
-                    break;
-                }
-            }
+            StaminaData.BuffInstance newBuff = new StaminaData.BuffInstance(attrName, data.regenAmount, op, data.durationTicks, sourceItemId);
+            applyOrUpdateBuff(player, cap, newBuff);
+        }
 
-            boolean shouldApply = false;
-            if (existingBuff == null) {
-                shouldApply = true;
-            } else {
-                if (data.regenAmount < 0) {
-                    if (data.regenAmount < existingBuff.amount) {
-                        shouldApply = true;
-                    }
-                } else {
-                    if (existingBuff.amount >= 0 && data.regenAmount > existingBuff.amount) {
-                        shouldApply = true;
-                    }
-                }
-            }
-
-            if (shouldApply) {
-                if (existingBuff != null) {
-                    cap.activeBuffs.remove(existingBuff);
-                    removeBuffModifier(player, existingBuff);
-                }
-                StaminaData.BuffInstance newBuff = new StaminaData.BuffInstance(attrName, data.regenAmount, op, data.durationTicks);
-                cap.activeBuffs.add(newBuff);
-                applyBuffModifier(player, newBuff);
+        if (!data.attributeBuffs.isEmpty()) {
+            for (StaminaData.BuffInstance newAttrBuff : data.attributeBuffs) {
+                StaminaData.BuffInstance buffCopy = new StaminaData.BuffInstance(
+                        newAttrBuff.attributeName, newAttrBuff.amount, newAttrBuff.operation, newAttrBuff.durationTicks, sourceItemId
+                );
+                applyOrUpdateBuff(player, cap, buffCopy);
             }
         }
 
@@ -1938,7 +1925,9 @@ public class ServerStaminaHandler {
             AttributeInstance inst = player.getAttribute(attr);
             if (inst == null) return;
 
-            ResourceLocation id = ResourceLocation.fromNamespaceAndPath(peakStaminaMod.MODID, "buff_" + buff.attributeName.replace(":", "_").replace(".", "_"));
+            boolean beneficial = isBeneficial(buff.attributeName, buff.amount);
+            String idStr = "buff_" + (beneficial ? "pos_" : "neg_") + buff.operation + "_" + buff.attributeName.replace(":", "_").replace(".", "_");
+            ResourceLocation id = ResourceLocation.fromNamespaceAndPath(peakStaminaMod.MODID, idStr);
             
             if (inst.getModifier(id) == null) {
                 AttributeModifier.Operation[] ops = AttributeModifier.Operation.values();
@@ -1966,9 +1955,59 @@ public class ServerStaminaHandler {
             AttributeInstance inst = player.getAttribute(attr);
             if (inst == null) return;
 
-            ResourceLocation id = ResourceLocation.fromNamespaceAndPath(peakStaminaMod.MODID, "buff_" + buff.attributeName.replace(":", "_").replace(".", "_"));
+            boolean beneficial = isBeneficial(buff.attributeName, buff.amount);
+            String idStr = "buff_" + (beneficial ? "pos_" : "neg_") + buff.operation + "_" + buff.attributeName.replace(":", "_").replace(".", "_");
+            ResourceLocation id = ResourceLocation.fromNamespaceAndPath(peakStaminaMod.MODID, idStr);
             inst.removeModifier(id);
         } catch (Exception ignored) {
+        }
+    }
+
+    public static boolean isBeneficial(String attrName, double amount) {
+        String name = attrName.toLowerCase(java.util.Locale.ROOT);
+        boolean isInverted = name.contains("cost") || name.contains("multiplier") || name.contains("delay") || name.contains("decay");
+        return isInverted ? amount < 0 : amount > 0;
+    }
+
+    public static double getBeneficialStrength(String attrName, double amount) {
+        String name = attrName.toLowerCase(java.util.Locale.ROOT);
+        boolean isInverted = name.contains("cost") || name.contains("multiplier") || name.contains("delay") || name.contains("decay");
+        return isInverted ? -amount : amount;
+    }
+
+    private static void applyOrUpdateBuff(Player player, StaminaData cap, StaminaData.BuffInstance newBuff) {
+        boolean newBeneficial = isBeneficial(newBuff.attributeName, newBuff.amount);
+        double newStrength = getBeneficialStrength(newBuff.attributeName, newBuff.amount);
+
+        StaminaData.BuffInstance existing = null;
+        for (StaminaData.BuffInstance b : cap.activeBuffs) {
+            if (b.attributeName.equals(newBuff.attributeName) && b.operation == newBuff.operation) {
+                if (isBeneficial(b.attributeName, b.amount) == newBeneficial) {
+                    existing = b;
+                    break;
+                }
+            }
+        }
+
+        if (existing == null) {
+            cap.activeBuffs.add(newBuff);
+            applyBuffModifier(player, newBuff);
+        } else {
+            double existingStrength = getBeneficialStrength(existing.attributeName, existing.amount);
+            boolean isStronger;
+            if (newBeneficial) {
+                isStronger = newStrength > existingStrength || (Math.abs(newStrength - existingStrength) < 0.0001 && newBuff.durationTicks > existing.durationTicks);
+            } else {
+                isStronger = newStrength < existingStrength || (Math.abs(newStrength - existingStrength) < 0.0001 && newBuff.durationTicks > existing.durationTicks);
+            }
+
+            if (isStronger) {
+                cap.activeBuffs.remove(existing);
+                removeBuffModifier(player, existing);
+
+                cap.activeBuffs.add(newBuff);
+                applyBuffModifier(player, newBuff);
+            }
         }
     }
 
@@ -1998,8 +2037,21 @@ public class ServerStaminaHandler {
         return new float[]{0f, 0f};
     }
 
-    public static ConsumableData getConsumableData(Item item) {
-        return CONSUMABLE_CACHE.get(item);
+    public static ConsumableData getConsumableData(ItemStack stack) {
+        if (stack.isEmpty()) return null;
+        net.minecraft.world.item.component.CustomData customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        CompoundTag tag = customData != null ? customData.copyTag() : null;
+
+        for (ConsumableEntry entry : CONSUMABLE_CACHE) {
+            if (stack.is(entry.item)) {
+                if (entry.nbt == null) {
+                    return entry.data;
+                } else if (tag != null && net.minecraft.nbt.NbtUtils.compareNbt(entry.nbt, tag, true)) {
+                    return entry.data;
+                }
+            }
+        }
+        return null;
     }
 
     public static int getCustomEnchantLevel(ItemStack stack, String enchantName) {
@@ -2013,6 +2065,7 @@ public class ServerStaminaHandler {
     }
 
     public static float applyTirelessDiscount(ItemStack stack, float originalCost) {
+        if (!StaminaConfig.COMMON.enableEnchants.get()) return originalCost;
         if (stack.isEmpty() || originalCost <= 0) return originalCost;
         
         int tirelessLevel = getCustomEnchantLevel(stack, "peakstamina:tireless");

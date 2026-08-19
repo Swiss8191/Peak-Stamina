@@ -112,7 +112,7 @@ public class CustomActionHandler {
                     finalCost = baseCost * usageMult;
                 } else {
                     double actionRecoveryMult = 1.0;
-                    AttributeInstance recAttr = player.getAttribute(StaminaAttributes.STAMINA_ACTION_RECOVERY);
+                    AttributeInstance recAttr = player.getAttribute(StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER);
                     if (recAttr != null) actionRecoveryMult = recAttr.getValue();
                     finalCost = baseCost * actionRecoveryMult;
                 }
@@ -137,7 +137,7 @@ public class CustomActionHandler {
                 if (cap.stamina < 0) cap.stamina = 0;
                 if (cap.stamina > cap.maxStamina) cap.stamina = cap.maxStamina;
 
-                PacketDistributor.sendToPlayer(player, new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues));
+                PacketDistributor.sendToPlayer(player, new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues, cap.activeBuffs));
                 return true;
             }
         }

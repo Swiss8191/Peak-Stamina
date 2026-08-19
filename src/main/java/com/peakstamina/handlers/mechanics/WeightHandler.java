@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class WeightHandler {
 
     public static boolean debugNbtPaths = false;
-    private static final Map<Item, Double> itemWeightCache = new HashMap<>();
+    private static final Map<String, Double> itemWeightCache = new HashMap<>();
     private static final Map<TagKey<Item>, Double> tagWeightCache = new HashMap<>();
     private static final Map<Item, String> containerPathCache = new HashMap<>();
     private static final Map<Item, List<NbtWeightPath>> NBT_WEIGHT_PATHS_CACHE = new HashMap<>();
@@ -104,7 +104,23 @@ public class WeightHandler {
             }
         }
 
-        var handler = stack.getCapability(Capabilities.ItemHandler.ITEM);
+        net.minecraft.world.item.component.ItemContainerContents container = stack.get(net.minecraft.core.component.DataComponents.CONTAINER);
+        if (container != null) {
+            for (ItemStack subStack : container.nonEmptyItems()) {
+                contentWeight.updateAndGet(v -> v + getRecursiveStackWeight(player, subStack, baseHeuristic, depth + 1));
+            }
+            if (contentWeight.get() > 0) return weight + contentWeight.get();
+        }
+
+        net.minecraft.world.item.component.BundleContents bundle = stack.get(net.minecraft.core.component.DataComponents.BUNDLE_CONTENTS);
+        if (bundle != null) {
+            bundle.itemCopyStream().forEach(subStack -> {
+                contentWeight.updateAndGet(v -> v + getRecursiveStackWeight(player, subStack, baseHeuristic, depth + 1));
+            });
+            if (contentWeight.get() > 0) return weight + contentWeight.get();
+        }
+
+        var handler = stack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.ITEM);
         if (handler != null) {
             for (int i = 0; i < handler.getSlots(); i++) {
                 ItemStack subStack = handler.getStackInSlot(i);
@@ -192,12 +208,13 @@ public class WeightHandler {
         if (stack.isEmpty()) return 0.0;
         Item item = stack.getItem();
         int count = stack.getCount();
+        String regName = BuiltInRegistries.ITEM.getKey(item).toString();
 
         double totalWeight = 0.0;
         boolean overridden = false;
         
-        if (itemWeightCache.containsKey(item)) {
-            totalWeight += itemWeightCache.get(item);
+        if (itemWeightCache.containsKey(regName)) {
+            totalWeight += itemWeightCache.get(regName);
             overridden = true;
         }
 
@@ -221,11 +238,8 @@ public class WeightHandler {
                 double addedWeight = 0.0;
 
                 if (extractedId != null) {
-                    net.minecraft.resources.ResourceLocation extractedLoc = net.minecraft.resources.ResourceLocation.tryParse(extractedId);
-                    Item extractedItem = extractedLoc != null ? net.minecraft.core.registries.BuiltInRegistries.ITEM.get(extractedLoc) : null;
-                    
-                    if (extractedItem != null && itemWeightCache.containsKey(extractedItem)) {
-                        addedWeight = itemWeightCache.get(extractedItem);
+                    if (itemWeightCache.containsKey(extractedId)) {
+                        addedWeight = itemWeightCache.get(extractedId);
                     } else {
                         addedWeight = nbtPath.fallbackWeight;
                     }
@@ -235,7 +249,6 @@ public class WeightHandler {
 
                 totalWeight += addedWeight;
                 if (debugNbtPaths) {
-                    String regName = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).toString();
                     System.out.println("[PeakStamina NBT Debug] Base Item: " + regName +
                             " | Path: " + java.util.Arrays.toString(nbtPath.path) +
                             " | Found ID: " + extractedId +
@@ -245,11 +258,13 @@ public class WeightHandler {
         }
 
         double lightweightDiscount = 0.0;
-        int lightweightLevel = ServerStaminaHandler.getCustomEnchantLevel(stack, "peakstamina:lightweight");
-        if (lightweightLevel > 0) {
-            if (lightweightLevel == 1) lightweightDiscount = StaminaConfig.COMMON.lightweightLvl1.get();
-            else if (lightweightLevel == 2) lightweightDiscount = StaminaConfig.COMMON.lightweightLvl2.get();
-            else lightweightDiscount = StaminaConfig.COMMON.lightweightLvl3.get();
+        if (StaminaConfig.COMMON.enableEnchants.get()) {
+            int lightweightLevel = ServerStaminaHandler.getCustomEnchantLevel(stack, "peakstamina:lightweight");
+            if (lightweightLevel > 0) {
+                if (lightweightLevel == 1) lightweightDiscount = StaminaConfig.COMMON.lightweightLvl1.get();
+                else if (lightweightLevel == 2) lightweightDiscount = StaminaConfig.COMMON.lightweightLvl2.get();
+                else lightweightDiscount = StaminaConfig.COMMON.lightweightLvl3.get();
+            }
         }
         double weightMultiplier = Math.max(0.0, 1.0 - lightweightDiscount);
 
@@ -292,10 +307,7 @@ public class WeightHandler {
             try {
                 String[] parts = entry.split(";");
                 if (parts.length >= 2) {
-                    ResourceLocation loc = ResourceLocation.tryParse(parts[0].trim());
-                    if (loc != null && BuiltInRegistries.ITEM.containsKey(loc)) {
-                        itemWeightCache.put(BuiltInRegistries.ITEM.get(loc), Double.parseDouble(parts[1].trim()));
-                    }
+                    itemWeightCache.put(parts[0].trim(), Double.parseDouble(parts[1].trim()));
                 }
             } catch (Exception ignored) {}
         }

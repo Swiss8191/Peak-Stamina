@@ -16,7 +16,6 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.config.ModConfigEvent;
@@ -52,6 +51,7 @@ public class peakStaminaMod {
         StaminaCapability.ATTACHMENT_TYPES.register(modEventBus); 
         
         modEventBus.addListener(this::attachAttributes);
+        modEventBus.addListener(com.peakstamina.network.StaminaNetwork::register);
 
         NeoForge.EVENT_BUS.register(this);
 
@@ -95,8 +95,8 @@ public class peakStaminaMod {
         if (!event.has(EntityType.PLAYER, StaminaAttributes.GLOBAL_STAMINA_USAGE)) {
             event.add(EntityType.PLAYER, StaminaAttributes.GLOBAL_STAMINA_USAGE);
         }
-        if (!event.has(EntityType.PLAYER, StaminaAttributes.STAMINA_ACTION_RECOVERY)) {
-            event.add(EntityType.PLAYER, StaminaAttributes.STAMINA_ACTION_RECOVERY);
+        if (!event.has(EntityType.PLAYER, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER)) {
+            event.add(EntityType.PLAYER, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER);
         }
 
         event.add(EntityType.PLAYER, StaminaAttributes.CURRENT_STAMINA);
@@ -112,6 +112,8 @@ public class peakStaminaMod {
         event.add(EntityType.PLAYER, StaminaAttributes.MISSED_ATTACK_COST_MULTIPLIER);
         event.add(EntityType.PLAYER, StaminaAttributes.SHIELD_BLOCK_COST_MULTIPLIER);
         event.add(EntityType.PLAYER, StaminaAttributes.ITEM_COST_MULTIPLIER);
+        event.add(EntityType.PLAYER, StaminaAttributes.USE_COST_MULTIPLIER);
+        event.add(EntityType.PLAYER, StaminaAttributes.TICK_COST_MULTIPLIER);
         event.add(EntityType.PLAYER, StaminaAttributes.BLOCK_BREAK_COST_MULTIPLIER);
         event.add(EntityType.PLAYER, StaminaAttributes.BLOCK_PLACE_COST_MULTIPLIER);
         event.add(EntityType.PLAYER, StaminaAttributes.SWIM_COST_MULTIPLIER);
@@ -141,18 +143,4 @@ public class peakStaminaMod {
         StaminaCommand.register(event.getDispatcher());
     }
 
-    @EventBusSubscriber(modid = MODID, bus = EventBusSubscriber.Bus.MOD)
-    public static class ConfigReloadHandler {
-        @SubscribeEvent
-        public static void onConfigReload(ModConfigEvent.Reloading event) {
-            if (event.getConfig().getType() == net.neoforged.fml.config.ModConfig.Type.COMMON) {
-                com.peakstamina.handlers.core.ServerStaminaHandler.refreshAllCaches(); 
-                if (net.neoforged.fml.ModList.get().isLoaded("walljump")) com.peakstamina.compat.walljump.WallJumpCompat.refreshCache();
-            }
-            if (event.getConfig().getType() == net.neoforged.fml.config.ModConfig.Type.CLIENT) {
-                com.peakstamina.client.events.ClientStaminaEvents.invalidateCache();
-                com.peakstamina.client.gui.CustomIconRegistry.reload();
-            }
-        }
-    }
 }
