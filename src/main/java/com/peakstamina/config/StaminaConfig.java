@@ -1,8 +1,10 @@
 package com.peakstamina.config;
 
-import net.minecraftforge.common.ForgeConfigSpec;
-import org.apache.commons.lang3.tuple.Pair;
 import java.util.List;
+
+import org.apache.commons.lang3.tuple.Pair;
+
+import net.minecraftforge.common.ForgeConfigSpec;
 
 public class StaminaConfig {
 
@@ -92,6 +94,8 @@ public class StaminaConfig {
         public ForgeConfigSpec.DoubleValue recoveryClimbMult;
         public ForgeConfigSpec.DoubleValue recoveryWaterMult;
         public ForgeConfigSpec.IntValue recoveryDelay;
+
+        public ForgeConfigSpec.BooleanValue enableEnchants;
 
         public ForgeConfigSpec.DoubleValue lightweightLvl1;
         public ForgeConfigSpec.DoubleValue lightweightLvl2;
@@ -216,19 +220,22 @@ public class StaminaConfig {
         private void initEnchants(ForgeConfigSpec.Builder builder) {
             builder.push("Enchantments");
 
+            enableEnchants = builder.comment("Set to false to completely disable the effects and acquisition of custom Peak Stamina enchantments.")
+                .define("enableEnchants", true);
+
             lightweightLvl1 = builder.comment("Weight reduction multiplier for Lightweight I (e.g. 0.25 = 25% reduction)")
-                    .defineInRange("lightweightLvl1", 0.25, 0.0, 1.0);
+                .defineInRange("lightweightLvl1", 0.25, 0.0, 1.0);
             lightweightLvl2 = builder.comment("Weight reduction multiplier for Lightweight II")
-                    .defineInRange("lightweightLvl2", 0.50, 0.0, 1.0);
+                .defineInRange("lightweightLvl2", 0.50, 0.0, 1.0);
             lightweightLvl3 = builder.comment("Weight reduction multiplier for Lightweight III")
-                    .defineInRange("lightweightLvl3", 0.75, 0.0, 1.0);
+                .defineInRange("lightweightLvl3", 0.75, 0.0, 1.0);
 
             tirelessLvl1 = builder.comment("Stamina cost reduction for Tireless I (e.g. 0.20 = 20% reduction)")
-                    .defineInRange("tirelessLvl1", 0.20, 0.0, 1.0);
+                .defineInRange("tirelessLvl1", 0.20, 0.0, 1.0);
             tirelessLvl2 = builder.comment("Stamina cost reduction for Tireless II")
-                    .defineInRange("tirelessLvl2", 0.40, 0.0, 1.0);
+                .defineInRange("tirelessLvl2", 0.40, 0.0, 1.0);
             tirelessLvl3 = builder.comment("Stamina cost reduction for Tireless III")
-                    .defineInRange("tirelessLvl3", 0.60, 0.0, 1.0);
+                .defineInRange("tirelessLvl3", 0.60, 0.0, 1.0);
 
             builder.pop();
         }
@@ -362,6 +369,11 @@ public class StaminaConfig {
         public final ForgeConfigSpec.IntValue colorPenaltyHunger;
         public final ForgeConfigSpec.IntValue colorPenaltyPoison;
         public final ForgeConfigSpec.BooleanValue showIcons;
+        public final ForgeConfigSpec.BooleanValue showNumericalReadout;
+        public final ForgeConfigSpec.IntValue numberXOffset;
+        public final ForgeConfigSpec.IntValue numberYOffset;
+        public final ForgeConfigSpec.DoubleValue numberScale;
+        public final ForgeConfigSpec.DoubleValue extraStaminaBrightness;
         public final ForgeConfigSpec.IntValue colorBonusTop;
         public final ForgeConfigSpec.IntValue colorBonusBottom;
         public final ForgeConfigSpec.IntValue colorBonusHighlight;
@@ -392,22 +404,18 @@ public class StaminaConfig {
         public final ForgeConfigSpec.ConfigValue<String> customUnitLabel;
         public final ForgeConfigSpec.DoubleValue customUnitMultiplier;
 
+        public final ForgeConfigSpec.BooleanValue enableActiveBuffsHUD;
+        public final ForgeConfigSpec.IntValue activeBuffsXOffset;
+        public final ForgeConfigSpec.IntValue activeBuffsYOffset;
+        public final ForgeConfigSpec.ConfigValue<String> activeBuffsButtonLabel;
+        public final ForgeConfigSpec.BooleanValue activeBuffsShowIcons;
+
         // Tooltip Configs
         public final ForgeConfigSpec.BooleanValue enableTooltips;
         public final ForgeConfigSpec.BooleanValue advancedTooltipsOnly;
+        public final ForgeConfigSpec.BooleanValue colorCodeBuffs;
+        public final ForgeConfigSpec.ConfigValue<List<? extends String>> invertedTooltipAttributes;
         public final ForgeConfigSpec.ConfigValue<List<? extends String>> customTooltips;
- 
-        // Tooltip Labels
-        public final ForgeConfigSpec.ConfigValue<String> labelWeight;
-        public final ForgeConfigSpec.ConfigValue<String> labelAttackCost;
-        public final ForgeConfigSpec.ConfigValue<String> labelUseCost;
-        public final ForgeConfigSpec.ConfigValue<String> labelTickCost;
-        public final ForgeConfigSpec.ConfigValue<String> labelBlockCost;
-        public final ForgeConfigSpec.ConfigValue<String> labelMissCost;
-        public final ForgeConfigSpec.ConfigValue<String> labelInstant;
-        public final ForgeConfigSpec.ConfigValue<String> labelBonus;
-        public final ForgeConfigSpec.ConfigValue<String> labelRegen;
-        public final ForgeConfigSpec.ConfigValue<String> labelCures;
 
         public Client(ForgeConfigSpec.Builder builder) {
             builder.push("HUD Layout");
@@ -421,6 +429,11 @@ public class StaminaConfig {
             regenIndicatorStyle = builder.comment("Regen Arrow Style: DEFAULT (uses >>> ), CUSTOM (uses your custom texture made in the sprite sheet) or OFF.").defineEnum("regenIndicatorStyle", RegenIndicatorStyle.DEFAULT);
             showRegenBorder = builder.comment("If true, draws a slightly dark border around the regen indicators (>).").define("showRegenBorder", true);
             showIcons = builder.comment(" Whether to render text/emoji icons on the stamina bar penalty zones.").define("showIcons", true);
+            showNumericalReadout = builder.comment(" Draw a numerical text readout (e.g., 100 / 100) on the stamina HUD.").define("showNumericalReadout", false);
+            numberXOffset = builder.comment("X offset for the numerical readout.").defineInRange("numberXOffset", 0, -5000, 5000);
+            numberYOffset = builder.comment("Y offset for the numerical readout.").defineInRange("numberYOffset", 0, -5000, 5000);
+            numberScale = builder.comment("Size scale for the numerical readout.").defineInRange("numberScale", 0.6, 0.1, 5.0);
+            extraStaminaBrightness = builder.comment("Brightness multiplier for the extra stamina bar section.").defineInRange("extraStaminaBrightness", 4.5, 1.0, 5.0);
             builder.pop();
 
             builder.push("Colors");
@@ -464,6 +477,19 @@ public class StaminaConfig {
 
             builder.pop();
 
+            builder.push("Active Buffs UI");
+            enableActiveBuffsHUD = builder.comment("Enable the Active Buffs button in the inventory.")
+                    .define("enableActiveBuffsHUD", true);
+            activeBuffsXOffset = builder.comment("X position offset for the Active Buffs button (0 is top-left of inventory GUI)")
+                    .defineInRange("activeBuffsXOffset", -24, -4000, 4000);
+            activeBuffsYOffset = builder.comment("Y position offset for the Active Buffs button (0 is top-left of inventory GUI)")
+                    .defineInRange("activeBuffsYOffset", 10, -4000, 4000);
+            activeBuffsButtonLabel = builder.comment("The text/icon displayed on the Active Buffs inventory button.")
+                    .define("activeBuffsButtonLabel", "⬆");
+            activeBuffsShowIcons = builder.comment("Show item icons next to attribute names in the Active Buffs screen.")
+                    .define("activeBuffsShowIcons", true);
+            builder.pop();
+
             builder.push("Auto Hud");
             autoHudEnable = builder.comment(" Enable hiding the stamina bar when full/not in use.").define("autoHudEnable", false);
             autoHudMode = builder.comment(" Animation type. FADE, SLIDE, or BOTH.").defineEnum("autoHudMode", AutoHudMode.FADE);
@@ -487,40 +513,62 @@ public class StaminaConfig {
             builder.push("Tooltips");
             enableTooltips = builder.comment("Enable stamina information on item tooltips.").define("enableTooltips", true);
             advancedTooltipsOnly = builder.comment("Only show tooltips when advanced tooltips are enabled (F3+H).").define("advancedTooltipsOnly", false);
-
-            builder.push("Labels");
-            labelWeight = builder.comment("Text shown before the Weight value.").define("labelWeight", "Weight: ");
-            labelAttackCost = builder.comment("Text shown before the Attack Cost value.").define("labelAttackCost", "Attack Cost: ");
-            labelUseCost = builder.comment("Text shown before the Use Cost value.").define("labelUseCost", "Use Cost: ");
-            labelTickCost = builder.comment("Text shown before the Tick/Active Cost value.").define("labelTickCost", "Active Cost: ");
-            labelBlockCost = builder.comment("Text shown before the Block Cost value.").define("labelBlockCost", "Block Cost: ");
-            labelMissCost = builder.comment("Text shown before the Missed Attack Cost value.").define("labelMissCost", "Miss Cost: ");
-            labelInstant = builder.comment("Text shown before the Instant Stamina value.").define("labelInstant", "Restores: ");
-            labelBonus = builder.comment("Text shown before the Bonus Stamina value.").define("labelBonus", "Bonus: ");
-            labelRegen = builder.comment("Text shown before the Regen Modifier value.").define("labelRegen", "Regen: ");
-            labelCures = builder.comment("Text shown before the Cures value.").define("labelCures", "Cures: ");
-            builder.pop();
+            colorCodeBuffs = builder.comment("Color code attribute buffs and debuffs (Green for positive, Red for negative).").define("colorCodeBuffs", true);
+            invertedTooltipAttributes = builder.comment(
+                    " A list of attribute IDs where a NEGATIVE/LOWER value is considered a BUFF (colored green).",
+                    " Add modded attributes here if they are being colored wrong in the tooltip.",
+                    " Format: modid:attribute_name"
+            ).defineList("invertedTooltipAttributes", java.util.Arrays.asList(
+                    "peakstamina:regen_delay_multiplier",
+                    "peakstamina:global_stamina_usage",
+                    "peakstamina:exhaustion_duration_multiplier",
+                    "peakstamina:penalty_gain_multiplier",
+                    "peakstamina:max_global_penalty_multiplier",
+                    "peakstamina:max_fatigue_penalty_multiplier",
+                    "peakstamina:max_hunger_penalty_multiplier",
+                    "peakstamina:max_poison_penalty_multiplier",
+                    "peakstamina:max_weight_penalty_multiplier",
+                    "peakstamina:weight_calculation_multiplier",
+                    "peakstamina:jump_cost_multiplier",
+                    "peakstamina:sprint_cost_multiplier",
+                    "peakstamina:attack_cost_multiplier",
+                    "peakstamina:missed_attack_cost_multiplier",
+                    "peakstamina:shield_block_cost_multiplier",
+                    "peakstamina:shieldexp_parry_cost_multiplier",
+                    "peakstamina:item_cost_multiplier",
+                    "peakstamina:block_break_cost_multiplier",
+                    "peakstamina:block_place_cost_multiplier",
+                    "peakstamina:swim_cost_multiplier",
+                    "peakstamina:climb_cost_multiplier",
+                    "peakstamina:elytra_cost_multiplier",
+                    "peakstamina:parcool_cost_multiplier",
+                    "peakstamina:walljumptxf_cost_multiplier",
+                    "peakstamina:combatroll_cost_multiplier",
+                    "peakstamina:bonus_stamina_decay_rate"
+            ), obj -> obj instanceof String);
 
             customTooltips = builder.comment(
                     " Define multiple tooltips to display on items. (Order here dictates order shown in-game)",
-                    " Format: 'CONTENT_TYPE;PLACEMENT;LABEL_COLOR;VALUE_COLOR'",
+                    " Format: 'CONTENT_TYPE;PLACEMENT;LABEL_COLOR;VALUE_COLOR;PREFIX;SUFFIX'",
                     " ",
                     " Available Content: WEIGHT, ATTACK_COST, MISSED_ATTACK_COST, USE_COST, TICK_COST, BLOCK_COST,",
-                    "                    INSTANT_STAMINA, BONUS_STAMINA, REGEN_MODIFIER, CURES",
+                    "                    INSTANT_STAMINA, BONUS_STAMINA, REGEN_MODIFIER, CURES, ATTRIBUTE",
                     " Available Placements: BOTTOM, BELOW_NAME",
                     " Colors: BLACK, DARK_BLUE, DARK_GREEN, DARK_AQUA, DARK_RED, DARK_PURPLE, GOLD, GRAY, DARK_GRAY, BLUE, GREEN, AQUA, RED, LIGHT_PURPLE, YELLOW, WHITE",
                     " ",
                     " Note: You can press Enter to format this list vertically in this file!"
             ).defineList("customTooltips", java.util.Arrays.asList(
-                    "WEIGHT;BOTTOM;DARK_GRAY;WHITE",
-                    "ATTACK_COST;BOTTOM;DARK_GRAY;WHITE",
-                    "BLOCK_COST;BOTTOM;DARK_GRAY;WHITE",
-                    "USE_COST;BOTTOM;DARK_GRAY;WHITE",
-                    "TICK_COST;BOTTOM;DARK_GRAY;WHITE",
-                    "INSTANT_STAMINA;BOTTOM;DARK_GRAY;GREEN",
-                    "BONUS_STAMINA;BOTTOM;DARK_GRAY;GOLD",
-                    "REGEN_MODIFIER;BOTTOM;DARK_GRAY;YELLOW",
-                    "CURES;BOTTOM;DARK_GRAY;WHITE"
+                    "WEIGHT;BOTTOM;DARK_GRAY;WHITE;Weight: ;",
+                    "ATTACK_COST;BOTTOM;DARK_GRAY;WHITE;Attack Cost: ;",
+                    "BLOCK_COST;BOTTOM;DARK_GRAY;WHITE;Block Cost: ;",
+                    "USE_COST;BOTTOM;DARK_GRAY;WHITE;Use Cost: ;",
+                    "TICK_COST;BOTTOM;DARK_GRAY;WHITE;Active Cost: ;/t",
+                    "MISSED_ATTACK_COST;BOTTOM;DARK_GRAY;WHITE;Miss Cost: ;",
+                    "INSTANT_STAMINA;BOTTOM;DARK_GRAY;GREEN;Restores: ; Stamina",
+                    "BONUS_STAMINA;BOTTOM;DARK_GRAY;GOLD;Bonus: ; Stamina",
+                    "ATTRIBUTE;BOTTOM;DARK_GRAY;AQUA;Buff: ;",
+                    "REGEN_MODIFIER;BOTTOM;DARK_GRAY;YELLOW;Regen: ;",
+                    "CURES;BOTTOM;DARK_GRAY;WHITE;Cures: ;"
             ), obj -> obj instanceof String);
             builder.pop();
         }

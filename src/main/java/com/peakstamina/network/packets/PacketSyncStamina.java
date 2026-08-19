@@ -5,6 +5,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
 
 public class PacketSyncStamina {
@@ -12,8 +14,9 @@ public class PacketSyncStamina {
     private final int exhaustionCooldown;
     private final float bonusStamina; 
     private final float[] penaltyValues;
+    private final List<StaminaCapability.BuffInstance> activeBuffs;
 
-    public PacketSyncStamina(float stamina, float maxStamina, float fatiguePenalty, float hungerPenalty, float poisonPenalty, float weightPenalty, int exhaustionCooldown, float bonusStamina, float[] penaltyValues) {
+    public PacketSyncStamina(float stamina, float maxStamina, float fatiguePenalty, float hungerPenalty, float poisonPenalty, float weightPenalty, int exhaustionCooldown, float bonusStamina, float[] penaltyValues, List<StaminaCapability.BuffInstance> activeBuffs) {
         this.stamina = stamina;
         this.maxStamina = maxStamina;
         this.fatiguePenalty = fatiguePenalty;
@@ -23,6 +26,7 @@ public class PacketSyncStamina {
         this.exhaustionCooldown = exhaustionCooldown;
         this.bonusStamina = bonusStamina;
         this.penaltyValues = penaltyValues;
+        this.activeBuffs = activeBuffs != null ? activeBuffs : new ArrayList<>();
     }
 
     public static void encode(PacketSyncStamina msg, FriendlyByteBuf buf) {
@@ -38,6 +42,16 @@ public class PacketSyncStamina {
         buf.writeVarInt(msg.penaltyValues.length);
         for (float f : msg.penaltyValues) {
             buf.writeFloat(f);
+        }
+
+        // Write Buffs
+        buf.writeVarInt(msg.activeBuffs.size());
+        for (StaminaCapability.BuffInstance buff : msg.activeBuffs) {
+            buf.writeUtf(buff.attributeName);
+            buf.writeDouble(buff.amount);
+            buf.writeVarInt(buff.operation);
+            buf.writeVarInt(buff.durationTicks);
+            buf.writeUtf(buff.sourceItem != null ? buff.sourceItem : "");
         }
     }
 
@@ -56,7 +70,21 @@ public class PacketSyncStamina {
         for (int i = 0; i < length; i++) {
             pv[i] = buf.readFloat();
         }
-        return new PacketSyncStamina(s, m, f, h, p, w, e, b, pv);
+
+        // Read Buffs
+        int buffCount = buf.readVarInt();
+        List<StaminaCapability.BuffInstance> buffs = new ArrayList<>();
+        for (int i = 0; i < buffCount; i++) {
+            buffs.add(new StaminaCapability.BuffInstance(
+                buf.readUtf(),
+                buf.readDouble(),
+                buf.readVarInt(),
+                buf.readVarInt(),
+                buf.readUtf()
+            ));
+        }
+
+        return new PacketSyncStamina(s, m, f, h, p, w, e, b, pv, buffs);
     }
 
     public static void handle(PacketSyncStamina msg, Supplier<NetworkEvent.Context> ctx) {
@@ -80,6 +108,10 @@ public class PacketSyncStamina {
                     cap.weightPenalty = msg.weightPenalty;
                     cap.bonusStamina = msg.bonusStamina;
                     cap.penaltyValues = msg.penaltyValues;
+                    
+                    // Sync active buffs to client
+                    cap.activeBuffs.clear();
+                    cap.activeBuffs.addAll(msg.activeBuffs);
                 });
             }
         }

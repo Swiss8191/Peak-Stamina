@@ -1,10 +1,10 @@
 package com.peakstamina.handlers.mechanics;
 
-import com.peakstamina.peakStaminaMod;
 import com.peakstamina.capabilities.StaminaCapability;
 import com.peakstamina.config.StaminaConfig;
 import com.peakstamina.network.StaminaNetwork;
 import com.peakstamina.network.packets.PacketSyncStamina;
+import com.peakstamina.peakStaminaMod;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -33,7 +33,7 @@ public class SleepHandler {
                     }
 
                     StaminaNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                        new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues));
+                        new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues, cap.activeBuffs));
                 });
             }
         }

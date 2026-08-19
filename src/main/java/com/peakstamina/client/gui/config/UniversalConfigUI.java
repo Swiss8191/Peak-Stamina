@@ -1273,14 +1273,24 @@ public class UniversalConfigUI {
                 }
 
                 if (p.isEmpty()) return "Argument " + (i + 1) + " (" + getNameForIndex(i, input) + ") cannot be empty.";
+                
+                String idToCheck = p;
+                if (idToCheck.contains("{")) {
+                    idToCheck = idToCheck.substring(0, idToCheck.indexOf('{'));
+                }
+
                 if (type.equals("ITEM")) {
-                    if (!ForgeRegistries.ITEMS.containsKey(new ResourceLocation(p))) return "'" + p + "' is not a valid Item ID.";
+                    ResourceLocation loc = ResourceLocation.tryParse(idToCheck);
+                    if (loc == null || !ForgeRegistries.ITEMS.containsKey(loc)) return "'" + p + "' is not a valid Item ID.";
                 } else if (type.equals("BLOCK")) {
-                    if (!ForgeRegistries.BLOCKS.containsKey(new ResourceLocation(p))) return "'" + p + "' is not a valid Block ID.";
+                    ResourceLocation loc = ResourceLocation.tryParse(idToCheck);
+                    if (loc == null || !ForgeRegistries.BLOCKS.containsKey(loc)) return "'" + p + "' is not a valid Block ID.";
                 } else if (type.equals("EFFECT")) {
-                    if (!ForgeRegistries.MOB_EFFECTS.containsKey(new ResourceLocation(p))) return "'" + p + "' is not a valid Effect ID.";
+                    ResourceLocation loc = ResourceLocation.tryParse(idToCheck);
+                    if (loc == null || !ForgeRegistries.MOB_EFFECTS.containsKey(loc)) return "'" + p + "' is not a valid Effect ID.";
                 } else if (type.equals("ATTRIBUTE")) {
-                    if (!ForgeRegistries.ATTRIBUTES.containsKey(new ResourceLocation(p))) return "'" + p + "' is not a valid Attribute ID.";
+                    ResourceLocation loc = ResourceLocation.tryParse(idToCheck);
+                    if (loc == null || !ForgeRegistries.ATTRIBUTES.containsKey(loc)) return "'" + p + "' is not a valid Attribute ID.";
                 } else if (type.equals("FLOAT")) {
                     try { Float.parseFloat(p);
                     } catch (Exception e) { return "'" + p + "' must be a number.";

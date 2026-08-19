@@ -9,6 +9,8 @@ import net.minecraftforge.common.util.INBTSerializable;
 import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import net.minecraft.world.entity.player.Player;
+import com.peakstamina.registry.StaminaAttributes;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -161,12 +163,14 @@ public class StaminaCapability implements INBTSerializable<CompoundTag> {
         public double amount;
         public int operation;
         public int durationTicks; 
+        public String sourceItem;
         
-        public BuffInstance(String attr, double amt, int op, int ticks) {
+        public BuffInstance(String attr, double amt, int op, int ticks, String source) {
             this.attributeName = attr;
             this.amount = amt;
             this.operation = op;
             this.durationTicks = ticks;
+            this.sourceItem = source == null ? "" : source;
         }
         
         public CompoundTag save() {
@@ -175,6 +179,7 @@ public class StaminaCapability implements INBTSerializable<CompoundTag> {
             tag.putDouble("Amnt", amount);
             tag.putInt("Op", operation);
             tag.putInt("Dur", durationTicks);
+            tag.putString("Source", sourceItem);
             return tag;
         }
         
@@ -183,8 +188,10 @@ public class StaminaCapability implements INBTSerializable<CompoundTag> {
                 tag.getString("Attr"),
                 tag.getDouble("Amnt"),
                 tag.getInt("Op"),
-                tag.getInt("Dur")
+                tag.getInt("Dur"),
+                tag.getString("Source")
             );
         }
     }
+
 }

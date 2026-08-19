@@ -14,6 +14,10 @@ import com.peakstamina.compat.parcool.ParCoolClientCompat;
 import com.peakstamina.compat.shieldexp.ShieldExpansionCompat;
 import com.peakstamina.compat.walljump.WallJumpCompat;
 import com.peakstamina.compat.walljump.WallJumpClientCompat;
+import com.peakstamina.compat.elenaidodge2.ElenaiDodgeCompat;
+import com.peakstamina.compat.elenaidodge2.ElenaiDodgeClientCompat;
+import com.peakstamina.compat.feathers.FeathersCompat;
+import com.peakstamina.compat.feathers.FeathersClientCompat;
 
 import com.peakstamina.config.ExperimentalConfig;
 import com.peakstamina.config.StaminaConfig;
@@ -89,6 +93,14 @@ public class peakStaminaMod {
             ShieldExpansionCompat.init();
         }
 
+        if (net.minecraftforge.fml.ModList.get().isLoaded("elenaidodge2")) {
+            ElenaiDodgeCompat.init();
+        }
+
+        if (net.minecraftforge.fml.ModList.get().isLoaded("feathers")) {
+            FeathersCompat.init();
+        }
+
         if (FMLEnvironment.dist == Dist.CLIENT) {
             if (net.minecraftforge.fml.ModList.get().isLoaded("parcool")) {
                 ParCoolClientCompat.init();
@@ -96,6 +108,14 @@ public class peakStaminaMod {
 
             if (net.minecraftforge.fml.ModList.get().isLoaded("walljump")) {
                 WallJumpClientCompat.init(); 
+            }
+
+            if (net.minecraftforge.fml.ModList.get().isLoaded("elenaidodge2")) {
+                ElenaiDodgeClientCompat.init();
+            }
+
+            if (net.minecraftforge.fml.ModList.get().isLoaded("feathers")) {
+                FeathersClientCompat.init();
             }
         }
     }
@@ -118,8 +138,8 @@ public class peakStaminaMod {
             event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.GLOBAL_STAMINA_USAGE.get());
         }
 
-        if (!event.has(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.STAMINA_ACTION_RECOVERY.get())) {
-            event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.STAMINA_ACTION_RECOVERY.get());
+        if (!event.has(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER.get())) {
+            event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER.get());
         }
 
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.CURRENT_STAMINA.get());
@@ -135,6 +155,8 @@ public class peakStaminaMod {
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.MISSED_ATTACK_COST_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.SHIELD_BLOCK_COST_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.ITEM_COST_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.USE_COST_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.TICK_COST_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.BLOCK_BREAK_COST_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.BLOCK_PLACE_COST_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.SWIM_COST_MULTIPLIER.get());
@@ -158,6 +180,7 @@ public class peakStaminaMod {
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.SHIELDEXP_BONUS_GAIN_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.SHIELDEXP_PARRY_COST_MULTIPLIER.get());
         event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.WALLJUMPTXF_COST_MULTIPLIER.get());
+        event.add(net.minecraft.world.entity.EntityType.PLAYER, StaminaAttributes.ELENAIDODGE2_COST_MULTIPLIER.get());
     }
 
     private void registerCaps(RegisterCapabilitiesEvent event) {
@@ -185,6 +208,10 @@ public class peakStaminaMod {
 
             if (event.getConfig().getType() == net.minecraftforge.fml.config.ModConfig.Type.COMMON) {
                 com.peakstamina.handlers.core.ServerStaminaHandler.refreshAllCaches();
+
+                if (net.minecraftforge.fml.loading.FMLEnvironment.dist == net.minecraftforge.api.distmarker.Dist.CLIENT) {
+                    com.peakstamina.client.events.ClientStaminaEvents.invalidateCache();
+                }
             }
 
             if (event.getConfig().getType() == net.minecraftforge.fml.config.ModConfig.Type.CLIENT) {

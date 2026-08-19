@@ -143,7 +143,7 @@ public class CombatRollCompat {
             cap.staminaRegenDelay = (int) (baseDelay * delayMult);
 
             StaminaNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> serverPlayer),
-                    new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues));
+                    new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues, cap.activeBuffs));
         });
     }
 }

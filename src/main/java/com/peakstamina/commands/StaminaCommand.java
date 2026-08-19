@@ -274,7 +274,7 @@ public class StaminaCommand {
             new PacketSyncStamina(
                 cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, 
                 cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, 
-                cap.bonusStamina, cap.penaltyValues
+                cap.bonusStamina, cap.penaltyValues, cap.activeBuffs
             )
         );
     }

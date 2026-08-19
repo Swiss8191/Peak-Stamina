@@ -237,14 +237,16 @@ public class WeightHandler {
         }
 
         double lightweightDiscount = 0.0;
-        int lightweightLevel = stack.getEnchantmentLevel(com.peakstamina.registry.StaminaEnchantments.LIGHTWEIGHT.get());
-        if (lightweightLevel > 0) {
-            if (lightweightLevel == 1) {
-                lightweightDiscount = StaminaConfig.COMMON.lightweightLvl1.get();
-            } else if (lightweightLevel == 2) {
-                lightweightDiscount = StaminaConfig.COMMON.lightweightLvl2.get();
-            } else {
-                lightweightDiscount = StaminaConfig.COMMON.lightweightLvl3.get();
+        if (StaminaConfig.COMMON.enableEnchants.get()) {
+            int lightweightLevel = stack.getEnchantmentLevel(com.peakstamina.registry.StaminaEnchantments.LIGHTWEIGHT.get());
+            if (lightweightLevel > 0) {
+                if (lightweightLevel == 1) {
+                    lightweightDiscount = StaminaConfig.COMMON.lightweightLvl1.get();
+                } else if (lightweightLevel == 2) {
+                    lightweightDiscount = StaminaConfig.COMMON.lightweightLvl2.get();
+                } else {
+                    lightweightDiscount = StaminaConfig.COMMON.lightweightLvl3.get();
+                }
             }
         }
         double weightMultiplier = Math.max(0.0, 1.0 - lightweightDiscount);

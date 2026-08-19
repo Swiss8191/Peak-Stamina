@@ -37,7 +37,7 @@ public class PacketWallJumpAction {
                         cap.staminaRegenDelay = ServerStaminaHandler.getRecoveryDelay(player);
                         
                         StaminaNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                            new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues));
+                            new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues, cap.activeBuffs));
                     }
                 });
             }

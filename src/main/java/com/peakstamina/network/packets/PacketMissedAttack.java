@@ -1,19 +1,20 @@
 package com.peakstamina.network.packets;
 
+import java.util.function.Supplier;
+
 import com.peakstamina.capabilities.StaminaCapability;
 import com.peakstamina.config.StaminaConfig;
 import com.peakstamina.handlers.core.ServerStaminaHandler;
 import com.peakstamina.handlers.mechanics.WeightHandler;
 import com.peakstamina.network.StaminaNetwork;
 import com.peakstamina.registry.StaminaAttributes;
+
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.PacketDistributor;
-
-import java.util.function.Supplier;
 
 public class PacketMissedAttack {
 
@@ -90,7 +91,7 @@ public class PacketMissedAttack {
                     }
                      
                     StaminaNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                            new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues));
+                            new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues, cap.activeBuffs));
                 });
             }
         });

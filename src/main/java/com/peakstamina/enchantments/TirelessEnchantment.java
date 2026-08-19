@@ -5,6 +5,7 @@ import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentCategory;
+import com.peakstamina.config.StaminaConfig;
 
 public class TirelessEnchantment extends Enchantment {
 
@@ -28,10 +29,44 @@ public class TirelessEnchantment extends Enchantment {
     }
 
     @Override
+    public boolean isTradeable() {
+        if (!StaminaConfig.COMMON.enableEnchants.get()) return false;
+        return super.isTradeable();
+    }
+
+    @Override
+    public boolean isDiscoverable() {
+        if (!StaminaConfig.COMMON.enableEnchants.get()) return false;
+        return super.isDiscoverable();
+    }
+
+    @Override
+    public boolean isAllowedOnBooks() {
+        if (!StaminaConfig.COMMON.enableEnchants.get()) return false;
+        return super.isAllowedOnBooks();
+    }
+
+    @Override
+    public boolean canApplyAtEnchantingTable(ItemStack stack) {
+        if (!StaminaConfig.COMMON.enableEnchants.get()) return false;
+        return super.canApplyAtEnchantingTable(stack);
+    }
+
+    @Override
     public boolean canEnchant(ItemStack stack) {
-        if (stack.getItem() instanceof ArmorItem) {
+        if (!com.peakstamina.config.StaminaConfig.COMMON.enableEnchants.get()) return false;
+        
+        net.minecraft.world.item.Item item = stack.getItem();
+
+        if (item instanceof net.minecraft.world.item.ArmorItem) {
             return false;
         }
-        return stack.isDamageableItem();
+        
+        // Tireless can go on Tools (axes/picks/shovels/hoes), Swords, Bows/Crossbows, Shields, and Tridents
+        return item instanceof net.minecraft.world.item.TieredItem || 
+               item instanceof net.minecraft.world.item.SwordItem || 
+               item instanceof net.minecraft.world.item.ProjectileWeaponItem ||
+               item instanceof net.minecraft.world.item.ShieldItem ||
+               item instanceof net.minecraft.world.item.TridentItem;
     }
 }

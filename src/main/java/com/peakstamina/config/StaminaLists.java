@@ -1,9 +1,11 @@
 package com.peakstamina.config;
 
-import net.minecraftforge.common.ForgeConfigSpec;
-import org.apache.commons.lang3.tuple.Pair;
 import java.util.Arrays;
 import java.util.List;
+
+import org.apache.commons.lang3.tuple.Pair;
+
+import net.minecraftforge.common.ForgeConfigSpec;
 
 public class StaminaLists {
 
@@ -274,6 +276,9 @@ public class StaminaLists {
 
         public ForgeConfigSpec.DoubleValue combatRollCost;
 
+        public ForgeConfigSpec.DoubleValue elenaiDodgeGroundCost;
+        public ForgeConfigSpec.DoubleValue elenaiDodgeAirCost;
+
         public ForgeConfigSpec.DoubleValue shieldExpParryMult;
         public ForgeConfigSpec.DoubleValue shieldExpParryBonus;
 
@@ -298,27 +303,28 @@ public class StaminaLists {
             consumableValues = builder.comment(
                     " ",
                     " Attribute Modifiers applied when consuming an item.",
-                    " Format: \"ItemId;TYPE;Args...;TYPE;Args...\"",
+                    " Define one action per line. To add multiple buffs to the same item, simply add multiple lines with the same item ID.",
+                    " Format: \"modid:item_name;modifier_type;arg1;arg2;arg3;arg4\"",
                     " Keywords & Scales:",
                     "  INSTANT;Amount        (FLAT: Instantly restores X stamina points)",
                     "  BONUS;Amount          (FLAT: Grants X Temporary Bonus Stamina in a secondary bar)",
-                    "  REGEN;Amount;Seconds (PERCENT: Modifies regen speed. 0.2 = +20%)",
-                    "  POISON;Amount        (FLAT: Adds X points of Food Poisoning penalty)",
+                    "  ATTRIBUTE;Target;Op;Amount;Seconds (MIXED: Target Attribute; Operation (0=Add, 1=Mult Base, 2=Mult Total); Amount; Duration)",
+                    "  REGEN;Amount;Seconds  (PERCENT: Modifies regen speed. 0.2 = +20%)",
+                    "  POISON;Amount         (FLAT: Adds X points of Food Poisoning penalty)",
                     "  PENALTY;Amount        (PERCENT: Adds Resistance to penalty buildup)",
                     "     Formula: 30% Base Resistance + Amount. Caps at 80% total.",
                     "     Examples: 10.0 = 40% resist (0.3 + 0.1), 50.0 = 80% resist (0.3 + 0.5).",
                     "  CURE;Target;Amount    (FLAT: Removes X points of chosen penalties)",
                     "     Targets: FATIGUE, HUNGER, POISON, WEIGHT, ALL, or Custom NBT Keys (e.g. 'thirstLevel')",
+                    " ",
                     " Examples:",
                     "  \"minecraft:apple;INSTANT;10.0\" (Restores 10 Stamina)",
-                    "  \"minecraft:milk_bucket;CURE;POISON;100.0\" (Removes 100.0 Poison Penalty)",
-                    "  \"modid:clean_water;CURE;thirstLevel;50.0\" (Removes 50.0 from custom 'thirstLevel' penalty)",
-                    "  \"modid:herbal_tea;CURE;POISON;50.0;CURE;FATIGUE;20.0\" (Cures Poison AND Fatigue at the same time)",
-                    "  \"modid:anti_toxin;CURE;minecraft:wither;25.0\" (Removes 25.0 penalty caused by the Wither effect)",
-                    "  \"minecraft:golden_carrot;PENALTY;20.0;BONUS;20  \" (Grants 50% resistance to penalty buildup and gives 20 bonus stamina, cures nothing)",
-                    "  \"minecraft:golden_apple;CURE;ALL;100.0;PENALTY;50.0;REGEN;0.25;60;BONUS;50\" (Cures ALL, Grants High Resist, +25% Regen, +50 bonus stamina)",
-                    " "
-            ).defineList("consumable_values", DEFAULT_CONSUMABLES, obj -> obj instanceof String);
+                    "  \"minecraft:golden_apple;CURE;ALL;100.0\" (Removes 100.0 from all penalties)",
+                    "  \"minecraft:golden_apple;PENALTY;50.0\" (Grants 80% total resistance to penalty buildup)",
+                    "  \"minecraft:golden_apple;REGEN;0.25;60\" (+25% Regen Speed for 60 seconds)",
+                    "  \"minecraft:golden_apple;BONUS;50.0\" (+50 Bonus Stamina overshield)",
+                    "  \"minecraft:sweet_berries;ATTRIBUTE;peakstamina:jump_cost_multiplier;1;-0.5;30\" (-50% Jump Cost for 30 Seconds)"
+            ).defineList("consumableValues", DEFAULT_CONSUMABLES, obj -> obj instanceof String);
             builder.pop();
         }
 
@@ -582,6 +588,16 @@ public class StaminaLists {
             builder.push("Combat Roll Compatibility");
             combatRollCost = builder.comment(" How much stamina a Combat Roll costs.")
                     .defineInRange("combatRollCost", 15.0, -1000.0, 1000.0);
+            builder.pop();
+
+            builder.push("Elenai Dodge 2");
+
+            elenaiDodgeGroundCost = builder.comment("How much stamina a ground dodge costs.")
+                        .defineInRange("elenaiDodgeGroundCost", 5.0, 0.0, 1000.0);
+                        
+            elenaiDodgeAirCost = builder.comment("How much stamina a mid-air dodge costs.")
+                        .defineInRange("elenaiDodgeAirCost", 8.0, 0.0, 1000.0);
+
             builder.pop();
 
             builder.push("Shield Expansion Compatibility");

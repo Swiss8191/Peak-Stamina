@@ -1,13 +1,18 @@
 package com.peakstamina.handlers.experimental;
 
-import com.peakstamina.peakStaminaMod;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import com.peakstamina.capabilities.StaminaCapability;
 import com.peakstamina.config.ExperimentalConfig;
 import com.peakstamina.config.StaminaConfig;
 import com.peakstamina.handlers.core.ServerStaminaHandler;
-import com.peakstamina.capabilities.StaminaCapability;
 import com.peakstamina.network.StaminaNetwork;
 import com.peakstamina.network.packets.PacketSyncStamina;
+import com.peakstamina.peakStaminaMod;
 import com.peakstamina.registry.StaminaAttributes;
+
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraftforge.event.entity.EntityMountEvent;
@@ -18,10 +23,6 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.registries.ForgeRegistries;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Mod.EventBusSubscriber(modid = peakStaminaMod.MODID)
 public class CustomActionHandler {
@@ -120,7 +121,7 @@ public class CustomActionHandler {
                         finalCost = baseCost * usageMult;
                     } else {
                         double actionRecoveryMult = 1.0;
-                        AttributeInstance recAttr = player.getAttribute(StaminaAttributes.STAMINA_ACTION_RECOVERY.get());
+                        AttributeInstance recAttr = player.getAttribute(StaminaAttributes.STAMINA_ACTION_RECOVERY_MULTIPLIER.get());
                         if (recAttr != null) actionRecoveryMult = recAttr.getValue();
                         finalCost = baseCost * actionRecoveryMult;
                     }
@@ -148,7 +149,7 @@ public class CustomActionHandler {
                     if (cap.stamina > cap.maxStamina) cap.stamina = cap.maxStamina;
 
                     StaminaNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                            new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues));
+                            new PacketSyncStamina(cap.stamina, cap.maxStamina, cap.fatiguePenalty, cap.currentHungerPenalty, cap.poisonPenalty, cap.weightPenalty, cap.exhaustionCooldown, cap.bonusStamina, cap.penaltyValues, cap.activeBuffs));
                 });
 
                 return isAllowed.get(); 

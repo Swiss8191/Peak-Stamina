@@ -2,7 +2,9 @@ package com.peakstamina.network;
 
 import com.peakstamina.peakStaminaMod;
 import com.peakstamina.network.packets.PacketMissedAttack;
+import com.peakstamina.network.packets.parcool.PacketParCoolAction;
 import com.peakstamina.network.packets.PacketSyncStamina;
+import com.peakstamina.network.packets.elenaidodge2.PacketElenaiDodge;
 import com.peakstamina.network.packets.walljump.PacketSyncWallJumpState;
 import com.peakstamina.network.packets.walljump.PacketWallJumpAction;
 
@@ -26,5 +28,7 @@ public class StaminaNetwork {
         CHANNEL.registerMessage(id++, PacketMissedAttack.class, PacketMissedAttack::encode, PacketMissedAttack::decode, PacketMissedAttack::handle);
         CHANNEL.messageBuilder(PacketWallJumpAction.class, id++, NetworkDirection.PLAY_TO_SERVER).encoder(PacketWallJumpAction::toBytes).decoder(PacketWallJumpAction::new).consumerMainThread(PacketWallJumpAction::handle).add();
         CHANNEL.messageBuilder(PacketSyncWallJumpState.class, id++, NetworkDirection.PLAY_TO_SERVER).encoder(PacketSyncWallJumpState::toBytes).decoder(PacketSyncWallJumpState::new).consumerMainThread(PacketSyncWallJumpState::handle).add();
+        CHANNEL.messageBuilder(PacketElenaiDodge.class, id++, NetworkDirection.PLAY_TO_SERVER).encoder(PacketElenaiDodge::toBytes).decoder(PacketElenaiDodge::new).consumerMainThread(PacketElenaiDodge::handle).add();
+        CHANNEL.messageBuilder(PacketParCoolAction.class, id++, NetworkDirection.PLAY_TO_SERVER).encoder(PacketParCoolAction::toBytes).decoder(PacketParCoolAction::new).consumerMainThread(PacketParCoolAction::handle).add();
     }
 }
